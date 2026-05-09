@@ -4,7 +4,7 @@
 
 This project presents LegiMaintLex, an approach for ontology extraction and population from French maintenance regulations, combining large language models (LLMs) with a Methontology-informed process. The proposed pipeline relies on signature-driven triple extraction to identify structured relation patterns from regulatory text.
 
-![LegiMaintLex architecture](src/img/pipeline.png)
+![LegiMaintLex architecture](src/img/pipelinee.png)
 
 ## Repository Layout
 
