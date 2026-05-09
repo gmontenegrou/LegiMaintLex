@@ -12,8 +12,8 @@ This project presents LegiMaintLex, an approach for ontology extraction and popu
 - `src/kg_creation/`: pipeline runners and dataset creation scripts.
 - `src/preprocess/`: preprocessing utilities, flattening scripts, RML rule generation, and RDF creation.
 - `config/`: YAML experiment configurations.
-- `src/exp/new_ontology/`: ontology discovery and extended ontology outputs.
-- `src/exp/kg/`: full extraction outputs for OpenAI and Mistral experiments.
+- `exp/new_ontology/`: ontology discovery and extended ontology outputs.
+- `exp/kg/`: full extraction outputs for OpenAI and Mistral experiments.
 
 ## Setup
 
@@ -121,9 +121,9 @@ python src/kg_creation/run_pipeline.py --config config/experiments/full/mistral_
 
 Main outputs:
 
-- `src/exp/ontology_extension/owl/ontology_extended_mistral.ttl`
-- `src/exp/ontology_extension/owl/ontology_extended_openai.ttl`
-- `src/exp/ontology_extension/owl/ontology_extended_agreement.ttl` when the configuration requests the agreement variant
+- `exp/new_ontology/mistral/ontology_extended_mistral.ttl`
+- `exp/new_ontology/openai/ontology_extended_openai.ttl`
+- `exp/new_ontology/agreement/ontology_extended_agreement.ttl` when the configuration requests the agreement variant
 
 The relevant stages are defined in `config/base_pipeline_ont_ext.yaml`:
 
@@ -177,10 +177,10 @@ python src/kg_creation/run_pipeline.py --config config/experiments/dataset_full/
 
 Main outputs:
 
-- `src/exp/dataset_full/mistral/full_constrained_extraction_by_mistral_mistral-large-latest_nrows_6370.csv`
-- `src/exp/dataset_full/mistral/full_constrained_extraction_by_mistral_mistral-large-latest_nrows_6370_input.csv`
-- `src/exp/dataset_full/openai/full_constrained_extraction_by_openai_gpt-4.1_nrows_6370.csv`
-- `src/exp/dataset_full/openai/full_constrained_extraction_by_openai_gpt-4.1_nrows_6370_input.csv`
+- `exp/kg/mistral/full_constrained_extraction_by_mistral_mistral-large-latest_nrows_6370.csv`
+- `exp/kg/mistral/full_constrained_extraction_by_mistral_mistral-large-latest_nrows_6370_input.csv`
+- `exp/kg/openai/full_constrained_extraction_by_openai_gpt-4.1_nrows_6370.csv`
+- `exp/kg/openai/full_constrained_extraction_by_openai_gpt-4.1_nrows_6370_input.csv`
 
 The `_input.csv` files keep the source rows used for extraction. They are important for recovering source metadata such as article identifiers and dates.
 
@@ -253,15 +253,15 @@ The transformation uses:
 
 Main generated files:
 
-- RML rules: `src/exp/dataset_full/{provider}/csv_to_rml_mapping_{provider}_rules.ttl`
-- merged extraction results: `src/exp/dataset_full/{provider}/*_elements_merged.csv`
-- merged row-level extraction results: `src/exp/dataset_full/{provider}/triplets_in_row_*_elements_merged.csv`
-- entity/relation merge mappings: `src/exp/dataset_full/{provider}/*_entity_mapping.*` and `*_relation_mapping.*`
-- flat triples: `src/exp/dataset_full/{provider}/*_legal_triplets_flat.csv`
-- flat entities: `src/exp/dataset_full/{provider}/*_legal_entities_flat.csv`
-- flat mentions: `src/exp/dataset_full/{provider}/*_legal_mentions_flat.csv`
-- RML source CSVs: `src/exp/dataset_full/{provider}/rml_sources/`
-- RDF KG: `src/exp/dataset_full/kg/{provider}/csv_to_rml_mapping_{provider}_rules.ttl`
+- RML rules: `exp/kg/{provider}/csv_to_rml_mapping_{provider}_rules.ttl`
+- merged extraction results: `exp/kg/{provider}/*_elements_merged.csv`
+- merged row-level extraction results: `exp/kg/{provider}/triplets_in_row_*_elements_merged.csv`
+- entity/relation merge mappings: `exp/kg/{provider}/*_entity_mapping.*` and `*_relation_mapping.*`
+- flat triples: `exp/kg/{provider}/*_legal_triplets_flat.csv`
+- flat entities: `exp/kg/{provider}/*_legal_entities_flat.csv`
+- flat mentions: `exp/kg/{provider}/*_legal_mentions_flat.csv`
+- RML source CSVs: `exp/kg/{provider}/rml_sources/`
+- RDF KG: `exp/kg/rdf/{provider}/csv_to_rml_mapping_{provider}_rules.ttl`
 
 By default, the RDF generator uses the built-in lightweight RML subset engine. If `pyrml` is installed and available, the same script can be run with:
 
@@ -276,8 +276,8 @@ Build provider-specific RML rules only:
 ```powershell
 python src/preprocess/build_rml_extraction_rules_from_ontology.py `
   --base-rml src/data/csv_to_rml_mapping.ttl `
-  --ontology src/exp/ontology_extension/owl/ontology_extended_mistral.ttl `
-  --output src/exp/dataset_full/mistral/csv_to_rml_mapping_mistral_rules.ttl
+  --ontology exp/new_ontology/mistral/ontology_extended_mistral.ttl `
+  --output exp/kg/mistral/csv_to_rml_mapping_mistral_rules.ttl
 ```
 
 Flatten extraction results only:
@@ -285,7 +285,7 @@ Flatten extraction results only:
 ```powershell
 python src/preprocess/flatten_kg_results.py `
   --provider mistral `
-  --results-csv src/exp/dataset_full/mistral/full_constrained_extraction_by_mistral_mistral-large-latest_nrows_6370.csv `
+  --results-csv exp/kg/mistral/full_constrained_extraction_by_mistral_mistral-large-latest_nrows_6370.csv `
   --input-csv src/data/maintreg_database_clean.csv
 ```
 
@@ -294,7 +294,7 @@ Create RDF from an existing mapping only:
 ```powershell
 python src/preprocess/create_kg_from_rlm.py `
   --provider mistral `
-  --mapping src/exp/dataset_full/mistral/csv_to_rml_mapping_mistral_rules.ttl `
+  --mapping exp/kg/mistral/csv_to_rml_mapping_mistral_rules.ttl `
   --format turtle
 ```
 

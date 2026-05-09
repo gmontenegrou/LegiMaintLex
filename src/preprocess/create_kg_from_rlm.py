@@ -35,7 +35,7 @@ RML_LOGICAL_SOURCE = URIRef(f"{RML}logicalSource")
 RML_SOURCE = URIRef(f"{RML}source")
 RML_REFERENCE = URIRef(f"{RML}reference")
 
-DEFAULT_OUTPUT_DIR = Path("src/exp/dataset_full/kg")
+DEFAULT_OUTPUT_DIR = Path("exp/kg/rdf")
 
 
 def set_max_csv_field_size() -> None:
@@ -50,7 +50,7 @@ def set_max_csv_field_size() -> None:
 
 def default_mapping(provider: str) -> Path:
     return (
-        Path("src/exp/dataset_full")
+        Path("exp/kg")
         / provider
         / f"csv_to_rml_mapping_{provider}_rules.ttl"
     )

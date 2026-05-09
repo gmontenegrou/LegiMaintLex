@@ -17,7 +17,7 @@ from typing import Set
 from rdflib import Graph, Literal, Namespace, URIRef
 from rdflib.namespace import OWL, RDF, RDFS
 
-DEFAULT_INPUT_OWL = Path("src/new_output/dataset/ontology_extended_from_canonical.ttl")
+DEFAULT_INPUT_OWL = Path("exp/new_ontology/ontology_extended_from_canonical.ttl")
 DEFAULT_OUTPUT_TTL = Path("src/data/semleg-triple-ont-auto.ttl")
 
 

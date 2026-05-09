@@ -785,7 +785,7 @@ if __name__ == "__main__":
             "--output-dir",
             type=Path,
             default=None,
-            help="Directory where outputs will be written. Defaults to src/new_output/dataset/<provider>/.",
+            help="Directory where outputs will be written. Defaults to exp/new_ontology/<provider>/.",
         )
         parser.add_argument(
             "--batch-results-output",
@@ -859,7 +859,7 @@ if __name__ == "__main__":
 
     args = build_arg_parser().parse_args()
 
-    output_dir = args.output_dir or Path(f"src/new_output/dataset/{args.provider}")
+    output_dir = args.output_dir or Path(f"exp/new_ontology/{args.provider}")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     batch_results_output = (

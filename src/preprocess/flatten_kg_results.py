@@ -528,7 +528,7 @@ def flatten(
 
 
 def default_results_csv(provider: str) -> Path:
-    root = Path("src/exp/dataset_full") / provider
+    root = Path("exp/kg") / provider
     candidates = {
         "mistral": [
             "full_constrained_extraction_by_mistral_mistral-large-latest_nrows_6370.csv",

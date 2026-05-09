@@ -1079,7 +1079,7 @@ async def run_two_step_pipeline_async(
     delay=0.0,
     max_concurrency=10,
     checkpoint_every=500,
-    checkpoint_path="src/experiments/extraction_checkpoint.csv",
+    checkpoint_path="exp/new_ontology/extraction_checkpoint.csv",
     constraint_mode="partial",
     constraints="triplets_ont",
     debug_outputs=False,
@@ -1438,13 +1438,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--constraints-base-path",
         type=Path,
-        default=Path("src/data/semleg-triple-ont-auto-classes-serialized.ttl"),
+        default=Path("src/data/semleg-triple-ont-auto-classes.ttl"),
         help="Ontology constraints file used for partial/two-step prompting.",
     )
     parser.add_argument(
         "--constraints-full-path",
         type=Path,
-        default=Path("src/data/semleg-triple-ont-auto.ttl"),
+        default=Path("src/data/semleg-triple-ont-auto-classes.ttl"),
         help="Ontology constraints file used for full/two-step prompting.",
     )
     parser.add_argument(

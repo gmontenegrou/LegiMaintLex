@@ -124,7 +124,7 @@ class MergeOutputFiles:
 
 
 def provider_config(provider: str) -> ProviderConfig:
-    dataset_dir = Path("src/exp/dataset_full") / provider
+    dataset_dir = Path("exp/kg") / provider
     results = {
         "mistral": dataset_dir
         / "full_constrained_extraction_by_mistral_mistral-large-latest_nrows_6370.csv",
@@ -141,9 +141,7 @@ def provider_config(provider: str) -> ProviderConfig:
             provider
         ],
         results_csv=results[provider],
-        ontology_ttl=Path(
-            f"src/exp/ontology_extension/owl/ontology_extended_{provider}.ttl"
-        ),
+        ontology_ttl=Path(f"exp/new_ontology/{provider}/ontology_extended_{provider}.ttl"),
         rml_mapping=dataset_dir / f"csv_to_rml_mapping_{provider}_rules.ttl",
     )
 
@@ -565,7 +563,7 @@ def indexed_row(
 
 
 def rml_source_files(config: ProviderConfig, results_csv: Path) -> RmlSourceFiles:
-    source_dir = Path("src/exp/dataset_full") / config.provider / "rml_sources"
+    source_dir = Path("exp/kg") / config.provider / "rml_sources"
     stem = results_csv.stem
     return RmlSourceFiles(
         documents=source_dir / f"{stem}_documents_rml.csv",

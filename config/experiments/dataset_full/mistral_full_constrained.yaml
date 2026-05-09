@@ -10,4 +10,4 @@ variables:
   extraction_retry_wait_seconds: 5.0
 
 paths:
-  extended_ontology_input_owl: ${variables.ont_ext_dir_path}/owl/ontology_extended_${variables.extended_ontology_variant}.ttl
+  extended_ontology_input_owl: ${variables.ont_ext_dir_path}/${variables.extended_ontology_variant}/ontology_extended_${variables.extended_ontology_variant}.ttl

@@ -13,7 +13,7 @@ from rdflib.collection import Collection
 from rdflib.namespace import OWL, RDF, RDFS
 
 
-DEFAULT_OUTPUT_DIR = Path("src/exp/evaluation_results")
+DEFAULT_OUTPUT_DIR = Path("exp/evaluation_results")
 DEFAULT_TRIPLETS_COLUMN = "legal_triplets"
 SEMLEG_NS = "https://w3id.org/semleg#"
 SEMLEGM_NS = "https://w3id.org/semleg/maintenance#"
@@ -51,20 +51,20 @@ DEFAULT_TARGETS = {
     "mistral": EvaluationTarget(
         provider="mistral",
         csv_path=Path(
-            "src/exp/dataset_full/mistral/"
+            "exp/kg/mistral/"
             "full_constrained_extraction_by_mistral_mistral-large-latest_nrows_6370.csv"
         ),
-        ontology_path=Path("src/exp/ontology_extension/owl/ontology_extended_mistral.ttl"),
-        kg_path=Path("src/exp/dataset_full/kg/mistral/csv_to_rml_mapping_mistral_rules.ttl"),
+        ontology_path=Path("exp/new_ontology/mistral/ontology_extended_mistral.ttl"),
+        kg_path=Path("exp/kg/rdf/mistral/csv_to_rml_mapping_mistral_rules.ttl"),
     ),
     "openai": EvaluationTarget(
         provider="openai",
         csv_path=Path(
-            "src/exp/dataset_full/openai/"
+            "exp/kg/openai/"
             "full_constrained_extraction_by_openai_gpt-4.1_nrows_6370.csv"
         ),
-        ontology_path=Path("src/exp/ontology_extension/owl/ontology_extended_openai.ttl"),
-        kg_path=Path("src/exp/dataset_full/kg/openai/csv_to_rml_mapping_openai_rules.ttl"),
+        ontology_path=Path("exp/new_ontology/openai/ontology_extended_openai.ttl"),
+        kg_path=Path("exp/kg/rdf/openai/csv_to_rml_mapping_openai_rules.ttl"),
     ),
 }
 

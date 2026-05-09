@@ -15,14 +15,14 @@ DEFAULT_PREFIXES = {
     "semlegm": "https://w3id.org/semleg/maintenance#",
 }
 
-DEFAULT_INPUT_CSV = Path("src/new_output/dataset/relations_simplify_canonical.csv")
+DEFAULT_INPUT_CSV = Path("exp/new_ontology/relations_simplify_canonical.csv")
 DEFAULT_BASE_ONTOLOGY = Path("src/data/semleg-ontology-filtered.ttl")
-DEFAULT_OUTPUT_TTL = Path("src/experiments/ontology_extended_from_canonical.ttl")
+DEFAULT_OUTPUT_TTL = Path("exp/new_ontology/ontology_extended_from_canonical.ttl")
 DEFAULT_OPENAI_JSON = Path(
-    "src/new_output/dataset/gpt/ontology_discovery_accumulated_candidate_model_final_two.json"
+    "exp/new_ontology/openai/ontology_discovery_accumulated_candidate_model_final_two.json"
 )
 DEFAULT_MISTRAL_JSON = Path(
-    "src/new_output/dataset/mistral/ontology_discovery_accumulated_candidate_model_final_two.json"
+    "exp/new_ontology/mistral/ontology_discovery_accumulated_candidate_model_final_two.json"
 )
 
 
@@ -417,7 +417,7 @@ def parse_args():
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("src/new_output/dataset/owl"),
+        default=Path("exp/new_ontology"),
         help="Output directory for provider-specific TTL files when using discovery JSON inputs.",
     )
     parser.add_argument("--base-iri", default="https://w3id.org/semleg/maintenance#")

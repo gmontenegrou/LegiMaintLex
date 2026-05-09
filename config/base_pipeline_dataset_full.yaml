@@ -1,10 +1,11 @@
 variables:
-  dir_path: src/exp/dataset_full
+  dir_path: exp/kg
   python_executable: .venv/Scripts/python.exe
   input_subset_nrows: null
 
   extraction_provider: openai
   extraction_model: gpt-4.1
+  extended_ontology_variant: ${variables.extraction_provider}
   extraction_constraint_mode: fully_constrained
   extraction_constraints: triplets_ont
   extraction_batch_poll_interval: 2.0
@@ -19,15 +20,15 @@ variables:
   extraction_mistral_use_batch: false
 
   turtle_light_mode: all
-  ont_ext_dir_path: src/exp/ontology_extension
+  ont_ext_dir_path: exp/new_ontology
 
   extraction_provider_dir: ${variables.dir_path}/${variables.extraction_provider}
   extraction_file_stem: full_constrained_extraction_by_${variables.extraction_provider}_${variables.extraction_model}_nrows_${runtime.effective_input_nrows}
 
 paths:
   raw_input_csv: src/data/maintreg_database_clean.csv
-  extended_ontology_input_owl: ${variables.ont_ext_dir_path}/ontology_extended_from_discovery.ttl
-  turtle_light_output_ttl: ${variables.dir_path}/semleg-triple-ont-auto-extended-${variables.extraction_provider}.ttl
+  extended_ontology_input_owl: ${variables.ont_ext_dir_path}/${variables.extended_ontology_variant}/ontology_extended_${variables.extended_ontology_variant}.ttl
+  turtle_light_output_ttl: ${variables.ont_ext_dir_path}/${variables.extended_ontology_variant}/semleg-triple-ont-auto-extended-${variables.extended_ontology_variant}.ttl
 
   extraction_constraints_base_path: ${paths.turtle_light_output_ttl}
   extraction_constraints_full_path: ${paths.turtle_light_output_ttl}

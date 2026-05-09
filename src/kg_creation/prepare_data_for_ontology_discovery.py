@@ -1,9 +1,9 @@
 """
 python src/kg_creation/prepare_data_for_ontology_discovery.py `
-  --input "src/experiments/openai/classes_guided_extraction_two_steps_by_openai_gpt-4.1_nrows_1389_reparsed_with_topics_normalized.csv" `
-  --clean-output "src/experiments/openai/classes_guided_extraction_two_steps_by_openai_gpt-4.1_nrows_1389_reparsed_with_topics_normalized_cleaned.csv" `
-  --errors-output "src/experiments/openai/classes_guided_extraction_two_steps_by_openai_gpt-4.1_nrows_1389_reparsed_with_topics_normalized_errors_removed.csv" `
-  --sample-output "src/experiments/openai/classes_guided_extraction_two_steps_by_openai_gpt-4.1_nrows_1389_reparsed_with_topics_normalized_sample_for_ontology_discovery.csv"
+  --input "exp/new_ontology/openai/classes_guided_extraction_two_steps_by_openai_gpt-4.1_nrows_1389_reparsed_with_topics_normalized.csv" `
+  --clean-output "exp/new_ontology/openai/classes_guided_extraction_two_steps_by_openai_gpt-4.1_nrows_1389_reparsed_with_topics_normalized_cleaned.csv" `
+  --errors-output "exp/new_ontology/openai/classes_guided_extraction_two_steps_by_openai_gpt-4.1_nrows_1389_reparsed_with_topics_normalized_errors_removed.csv" `
+  --sample-output "exp/new_ontology/openai/classes_guided_extraction_two_steps_by_openai_gpt-4.1_nrows_1389_reparsed_with_topics_normalized_sample_for_ontology_discovery.csv"
 
 """
 
@@ -28,7 +28,7 @@ CLASSES = [
 ]
 
 DEFAULT_INPUT = Path(
-    "src/experiments/openai/classes_guided_extraction_two_steps_by_openai_gpt-4.1_nrows_1389_reparsed_with_topics_normalized.csv"
+    "exp/new_ontology/openai/classes_guided_extraction_two_steps_by_openai_gpt-4.1_nrows_1389_reparsed_with_topics_normalized.csv"
 )
 
 

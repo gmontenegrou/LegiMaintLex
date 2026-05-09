@@ -174,7 +174,7 @@ def unique_uri_refs(values):
 
 
 def default_ontology_path(provider):
-    return Path(f"src/exp/ontology_extension/owl/ontology_extended_{provider}.ttl")
+    return Path(f"exp/new_ontology/{provider}/ontology_extended_{provider}.ttl")
 
 
 def load_relation_ontology_index(ontology_path):
@@ -902,7 +902,7 @@ def write_mapping_outputs(mapping_df, csv_path, json_path):
 
 
 def build_default_paths(provider, input_file=None):
-    dir_path = Path(f"src/experiments/{provider}")
+    dir_path = Path(f"exp/new_ontology/{provider}")
     input_path = (
         Path(input_file)
         if input_file
@@ -1126,7 +1126,7 @@ def build_arg_parser():
         default=None,
         help=(
             "Ontology TTL used by --relation-canonical-strategy ontology-aware. "
-            "Defaults to src/exp/ontology_extension/owl/ontology_extended_{provider}.ttl."
+            "Defaults to exp/new_ontology/{provider}/ontology_extended_{provider}.ttl."
         ),
     )
     parser.add_argument(

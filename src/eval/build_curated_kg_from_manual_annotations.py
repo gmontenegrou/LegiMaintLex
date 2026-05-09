@@ -17,19 +17,19 @@ SEMLEG = Namespace("https://w3id.org/semleg#")
 SEMLEGM = Namespace("https://w3id.org/semleg/maintenance#")
 PROV = Namespace("http://www.w3.org/ns/prov#")
 
-DEFAULT_KG = Path("src/exp/dataset_full/kg/openai/csv_to_rml_mapping_openai_rules.ttl")
+DEFAULT_KG = Path("exp/kg/rdf/openai/csv_to_rml_mapping_openai_rules.ttl")
 DEFAULT_MANUAL_CSV = Path(
-    "src/exp/evaluation_results/kg_predicate_tail_class/"
+    "exp/evaluation_results/kg_predicate_tail_class/"
     "ontology_extended_openai_from_kg_tail_class_filter_excluded_signatures.csv"
 )
 DEFAULT_CURATION_TTL = Path(
-    "src/exp/evaluation_results/kg_predicate_tail_class/openai_statement_curation.ttl"
+    "exp/evaluation_results/kg_predicate_tail_class/openai_statement_curation.ttl"
 )
 DEFAULT_CURATED_KG = Path(
-    "src/exp/evaluation_results/kg_predicate_tail_class/openai_kg_curated.ttl"
+    "exp/evaluation_results/kg_predicate_tail_class/openai_kg_curated.ttl"
 )
 DEFAULT_AUDIT_CSV = Path(
-    "src/exp/evaluation_results/kg_predicate_tail_class/openai_statement_curation_audit.csv"
+    "exp/evaluation_results/kg_predicate_tail_class/openai_statement_curation_audit.csv"
 )
 
 ENTITY_TYPE_RE = re.compile(r"/entity/([^/]+)/", re.IGNORECASE)

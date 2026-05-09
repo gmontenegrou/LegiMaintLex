@@ -8,9 +8,9 @@ from typing import Any, Iterable
 
 
 DEFAULT_INPUT_CSV = Path(
-    "src/exp/ontology_extension/owl/ontology_extended_openai_from_kg.csv"
+    "exp/new_ontology/openai/ontology_extended_openai_from_kg.csv"
 )
-DEFAULT_OUTPUT_DIR = Path("src/exp/evaluation_results/kg_predicate_tail_class")
+DEFAULT_OUTPUT_DIR = Path("exp/evaluation_results/kg_predicate_tail_class")
 
 CLASSES = [
     "Action",

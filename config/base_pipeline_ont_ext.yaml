@@ -1,5 +1,5 @@
 variables:
-  dir_path: src/exp/ontology_extension
+  dir_path: exp/new_ontology
   python_executable: .venv/Scripts/python.exe
   input_subset_nrows: 1389
 
@@ -41,12 +41,12 @@ variables:
 
   extraction_provider_dir: ${variables.dir_path}/${variables.extraction_provider}
   extraction_file_stem: ${variables.extraction_constraints}_guided_extraction_${variables.extraction_constraint_mode}_by_${variables.extraction_provider}_${variables.extraction_model}_nrows_${runtime.effective_input_nrows}
-  discovery_provider_dir: ${variables.dir_path}/${variables.discovery_provider}
+  discovery_provider_dir: ${variables.dir_path}/${variables.discovery_source}
 
 paths:
   raw_input_csv: src/data/maintreg_database_clean_balanced.csv
-  extraction_constraints_base_path: src/data/semleg-triple-ont-auto-classes-serialized.ttl
-  extraction_constraints_full_path: src/data/semleg-triple-ont-auto.ttl
+  extraction_constraints_base_path: src/data/semleg-triple-ont-auto-classes.ttl
+  extraction_constraints_full_path: src/data/semleg-triple-ont-auto-classes.ttl
   base_ontology_path: src/data/semleg-ontology-filtered.ttl
 
   extraction_output_csv: ${variables.extraction_provider_dir}/${variables.extraction_file_stem}.csv
@@ -70,8 +70,8 @@ paths:
   discovery_candidate_model_json: ${paths.discovery_output_dir}/ontology_discovery_accumulated_candidate_model_final_two.json
   discovery_final_owl_ttl: ${paths.discovery_output_dir}/ontology_discovery_final.ttl
 
-  owl_output_ttl: ${variables.dir_path}/ontology_extended_from_discovery.ttl
-  owl_output_dir: ${variables.dir_path}/owl
+  owl_output_ttl: ${variables.discovery_provider_dir}/ontology_extended_${variables.discovery_source}.ttl
+  owl_output_dir: ${variables.discovery_provider_dir}
 
 stages:
   - name: triplets_extraction_ontology_guided
