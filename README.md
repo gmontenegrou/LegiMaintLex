@@ -304,3 +304,7 @@ python src/preprocess/create_kg_from_rlm.py `
 - The full extraction and ontology discovery stages require provider API keys.
 - The RDF transformation expects the extraction CSV and its corresponding corpus metadata to be available.
 - Date values are normalized to `xsd:date` compatible lexical values during the RDF preparation step.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE).
