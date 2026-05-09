@@ -1,22 +1,10 @@
 # LegiMaintLex
 
-**LegiMaintLex: A Relation Extraction Dataset for French Legifrance Maintenance Regulations**
+**LegiMaintLex: LLM-based and Methontology-informed ontology extraction and population for a French Legal KG on Maintenance Regulations**
 
-LegiMaintLex is a dataset creation pipeline for extracting ontology-guided legal relation triples from French Legifrance maintenance regulations and transforming the extracted results into RDF. The project combines three main steps: ontology extension, constrained triple extraction, and CSV-to-RDF transformation with RML-style mappings.
+This project presents LegiMaintLex, an approach for ontology extraction and population from French maintenance regulations, combining large language models (LLMs) with a Methontology-informed process. The proposed pipeline relies on signature-driven triple extraction to identify structured relation patterns from regulatory text.
 
 ![LegiMaintLex architecture](src/img/legimaintlex_architecture.svg)
-
-## Resource Overview
-
-The dataset is built from French regulatory texts related to industrial maintenance. Each extracted record keeps document provenance and structured legal triples:
-
-- `head`, `relation`, `tail`
-- semantic types for `head` and `tail`
-- topic labels
-- article-level provenance
-- mention spans when the entity is explicitly grounded in the source text
-
-The RDF transformation creates a knowledge graph aligned with the SemLeg ontology extension and the RML mappings in this repository.
 
 ## Repository Layout
 
