@@ -76,7 +76,7 @@ paths:
 stages:
   - name: triplets_extraction_ontology_guided
     enabled: true
-    script: src/dataset_creation/triples_extraction_ontology_guided.py
+    script: src/kg_creation/triples_extraction_ontology_guided.py
     args:
       input-csv: ${paths.raw_input_csv}
       output-csv: ${paths.extraction_output_csv}
@@ -102,7 +102,7 @@ stages:
 
   - name: elements_merge_and_filtered
     enabled: true
-    script: src/dataset_creation/elements_merge_and_filtered.py
+    script: src/kg_creation/elements_merge_and_filtered.py
     args:
       provider: ${variables.embedding_provider}
       model: ${variables.embedding_model}
@@ -121,7 +121,7 @@ stages:
 
   - name: prepare_data_for_ontology_discovery
     enabled: true
-    script: src/dataset_creation/prepare_data_for_ontology_discovery.py
+    script: src/kg_creation/prepare_data_for_ontology_discovery.py
     args:
       input: ${paths.merge_flat_output_csv}
       clean-output: ${paths.clean_output_csv}
@@ -132,7 +132,7 @@ stages:
 
   - name: ontology_discovery_from_triplets
     enabled: true
-    script: src/dataset_creation/ontology_discovery_from_triplets.py
+    script: src/kg_creation/ontology_discovery_from_triplets.py
     args:
       input-csv: ${paths.sample_output_csv}
       ontology-path: ${paths.base_ontology_path}
@@ -149,7 +149,7 @@ stages:
 
   - name: from_ontology_discovery_to_owl
     enabled: true
-    script: src/dataset_creation/from_ontology_discovery_to_owl.py
+    script: src/kg_creation/from_ontology_discovery_to_owl.py
     args:
       openai-json: ${paths.discovery_candidate_model_json}
       mistral-json: ${paths.discovery_candidate_model_json}

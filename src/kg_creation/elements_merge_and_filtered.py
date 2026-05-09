@@ -1,5 +1,3 @@
-# python src\dataset_creation\elements_merge_and_filtered.py --provider openai --input-file "src\experiments\openai\classes_guided_extraction_two_steps_by_openai_gpt-4.1_nrows_1389_reparsed_with_topics.csv" --entity-similarity-threshold 0.7 --relation-similarity-threshold 0.7
-
 import argparse
 import ast
 import json

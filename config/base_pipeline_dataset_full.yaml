@@ -47,7 +47,7 @@ stages:
 
   - name: full_constrained_triple_extraction
     enabled: true
-    script: src/dataset_creation/triples_extraction_ontology_guided.py
+    script: src/kg_creation/triples_extraction_ontology_guided.py
     args:
       input-csv: ${paths.raw_input_csv}
       output-csv: ${paths.extraction_output_csv}

@@ -1,6 +1,5 @@
 """
-
-python src/dataset_creation/prepare_data_for_ontology_discovery.py `
+python src/kg_creation/prepare_data_for_ontology_discovery.py `
   --input "src/experiments/openai/classes_guided_extraction_two_steps_by_openai_gpt-4.1_nrows_1389_reparsed_with_topics_normalized.csv" `
   --clean-output "src/experiments/openai/classes_guided_extraction_two_steps_by_openai_gpt-4.1_nrows_1389_reparsed_with_topics_normalized_cleaned.csv" `
   --errors-output "src/experiments/openai/classes_guided_extraction_two_steps_by_openai_gpt-4.1_nrows_1389_reparsed_with_topics_normalized_errors_removed.csv" `

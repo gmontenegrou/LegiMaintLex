@@ -19,7 +19,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 BASE_RML = Path("src/data/csv_to_rml_mapping.ttl")
 BUILD_RML_RULES = Path("src/preprocess/build_rml_extraction_rules_from_ontology.py")
-MERGE_ELEMENTS = Path("src/dataset_creation/elements_merge_and_filtered.py")
+MERGE_ELEMENTS = Path("src/kg_creation/elements_merge_and_filtered.py")
 FLATTEN_KG = Path("src/preprocess/flatten_kg_results.py")
 CREATE_KG = Path("src/preprocess/create_kg_from_rlm.py")
 INSTANCE_NS = "https://w3id.org/semleg/legimaintlex/resource"

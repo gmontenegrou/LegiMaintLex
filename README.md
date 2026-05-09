@@ -11,7 +11,7 @@ This project presents LegiMaintLex, an approach for ontology extraction and popu
 - `src/data/`: source datasets, base ontologies, and the base RML mapping.
 - `src/exp/ontology_extension/`: ontology discovery and extended ontology outputs.
 - `src/exp/dataset_full/`: full extraction outputs for OpenAI and Mistral experiments.
-- `src/dataset_creation/`: pipeline runners and dataset creation scripts.
+- `src/kg_creation/`: pipeline runners and dataset creation scripts.
 - `src/preprocess/`: preprocessing utilities, flattening scripts, RML rule generation, and RDF creation.
 - `config/`: YAML experiment configurations.
 
@@ -104,19 +104,19 @@ The ontology extension pipeline starts from ontology-guided extraction on a bala
 Run the Mistral ontology extension experiment:
 
 ```powershell
-python src/dataset_creation/run_pipeline.py --config config/experiments/full/mistral_full.yaml
+python src/kg_creation/run_pipeline.py --config config/experiments/full/mistral_full.yaml
 ```
 
 Run the OpenAI ontology extension experiment:
 
 ```powershell
-python src/dataset_creation/run_pipeline.py --config config/experiments/full/openai_full.yaml
+python src/kg_creation/run_pipeline.py --config config/experiments/full/openai_full.yaml
 ```
 
 Useful dry run:
 
 ```powershell
-python src/dataset_creation/run_pipeline.py --config config/experiments/full/mistral_full.yaml --dry-run
+python src/kg_creation/run_pipeline.py --config config/experiments/full/mistral_full.yaml --dry-run
 ```
 
 Main outputs:
@@ -160,19 +160,19 @@ After the ontology has been extended, run the full constrained extraction over t
 Run Mistral extraction:
 
 ```powershell
-python src/dataset_creation/run_pipeline.py --config config/experiments/dataset_full/mistral_full_constrained.yaml
+python src/kg_creation/run_pipeline.py --config config/experiments/dataset_full/mistral_full_constrained.yaml
 ```
 
 Run OpenAI extraction:
 
 ```powershell
-python src/dataset_creation/run_pipeline.py --config config/experiments/dataset_full/openai_full_constrained.yaml
+python src/kg_creation/run_pipeline.py --config config/experiments/dataset_full/openai_full_constrained.yaml
 ```
 
 Dry run:
 
 ```powershell
-python src/dataset_creation/run_pipeline.py --config config/experiments/dataset_full/mistral_full_constrained.yaml --dry-run
+python src/kg_creation/run_pipeline.py --config config/experiments/dataset_full/mistral_full_constrained.yaml --dry-run
 ```
 
 Main outputs:
@@ -186,7 +186,7 @@ The `_input.csv` files keep the source rows used for extraction. They are import
 
 ## 3. Transform the Extraction Results into RDF
 
-Use `src/dataset_creation/csv_to_rdf_transform.py` to run the RDF transformation pipeline. This script orchestrates the required intermediate steps:
+Use `src/kg_creation/csv_to_rdf_transform.py` to run the RDF transformation pipeline. This script orchestrates the required intermediate steps:
 
 1. build ontology-driven RML rules from the extended ontology;
 2. merge semantically similar extracted entities and relations across all extracted triples, without topic filtering;
@@ -210,44 +210,44 @@ The transformation is controlled by RML-style mapping rules. The base mapping in
 Run the full RDF transformation for Mistral:
 
 ```powershell
-python src/dataset_creation/csv_to_rdf_transform.py --provider mistral
+python src/kg_creation/csv_to_rdf_transform.py --provider mistral
 ```
 
 Run it for OpenAI:
 
 ```powershell
-python src/dataset_creation/csv_to_rdf_transform.py --provider openai
+python src/kg_creation/csv_to_rdf_transform.py --provider openai
 ```
 
 Run it for both providers:
 
 ```powershell
-python src/dataset_creation/csv_to_rdf_transform.py --provider all
+python src/kg_creation/csv_to_rdf_transform.py --provider all
 ```
 
 Dry run:
 
 ```powershell
-python src/dataset_creation/csv_to_rdf_transform.py --provider mistral --dry-run
+python src/kg_creation/csv_to_rdf_transform.py --provider mistral --dry-run
 ```
 
 Useful debugging options:
 
 ```powershell
-python src/dataset_creation/csv_to_rdf_transform.py --provider mistral --max-rows 10 --kg-max-rows-per-source 10
+python src/kg_creation/csv_to_rdf_transform.py --provider mistral --max-rows 10 --kg-max-rows-per-source 10
 ```
 
 Start from flattening when ontology rules and normalized/merged inputs already exist or should be skipped:
 
 ```powershell
-python src/dataset_creation/csv_to_rdf_transform.py --provider mistral --start-at flatten
+python src/kg_creation/csv_to_rdf_transform.py --provider mistral --start-at flatten
 ```
 
 The transformation uses:
 
 - base mapping: `src/data/csv_to_rml_mapping.ttl`
 - ontology-driven rule builder: `src/preprocess/build_rml_extraction_rules_from_ontology.py`
-- entity/relation merge script: `src/dataset_creation/elements_merge_and_filtered.py`
+- entity/relation merge script: `src/kg_creation/elements_merge_and_filtered.py`
 - flattening script: `src/preprocess/flatten_kg_results.py`
 - RDF generator: `src/preprocess/create_kg_from_rlm.py`
 
@@ -266,7 +266,7 @@ Main generated files:
 By default, the RDF generator uses the built-in lightweight RML subset engine. If `pyrml` is installed and available, the same script can be run with:
 
 ```powershell
-python src/dataset_creation/csv_to_rdf_transform.py --provider mistral --engine pyrml
+python src/kg_creation/csv_to_rdf_transform.py --provider mistral --engine pyrml
 ```
 
 ## Running Individual RDF Steps
