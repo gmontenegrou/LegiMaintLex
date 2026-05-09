@@ -1,0 +1,162 @@
+variables:
+  dir_path: src/exp/ontology_extension
+  python_executable: .venv/Scripts/python.exe
+  input_subset_nrows: 1389
+
+  extraction_provider: openai
+  extraction_model: gpt-4.1
+  extraction_constraint_mode: two_steps
+  extraction_constraints: classes
+  extraction_batch_poll_interval: 2.0
+  extraction_delay: 0.0
+  extraction_max_concurrency: 5
+  extraction_checkpoint_every: 25
+  extraction_request_timeout_seconds: 120.0
+  extraction_max_retries: 3
+  extraction_retry_wait_seconds: 5.0
+  extraction_resume_from_checkpoint: false
+  extraction_openai_use_batch: false
+  extraction_mistral_use_batch: false
+
+  embedding_provider: openai
+  embedding_model: text-embedding-3-large
+  topic_filter: maintenanceActivity
+  entity_similarity_threshold: 0.7
+  relation_similarity_threshold: 0.7
+  relation_canonical_strategy: frequency
+  merge_batch_size: 128
+
+  sample_ratio: 0.05
+  random_state: 42
+
+  discovery_provider: gpt
+  discovery_model: gpt-4.1
+  discovery_batch_size: 15
+  discovery_run_step2: false
+  discovery_mistral_use_batch: false
+  discovery_include_previous_output_context: false
+  discovery_confidence_threshold: 0.7
+  discovery_source: openai
+  no_metadata: false
+
+  extraction_provider_dir: ${variables.dir_path}/${variables.extraction_provider}
+  extraction_file_stem: ${variables.extraction_constraints}_guided_extraction_${variables.extraction_constraint_mode}_by_${variables.extraction_provider}_${variables.extraction_model}_nrows_${runtime.effective_input_nrows}
+  discovery_provider_dir: ${variables.dir_path}/${variables.discovery_provider}
+
+paths:
+  raw_input_csv: src/data/maintreg_database_clean_balanced.csv
+  extraction_constraints_base_path: src/data/semleg-triple-ont-auto-classes-serialized.ttl
+  extraction_constraints_full_path: src/data/semleg-triple-ont-auto.ttl
+  base_ontology_path: src/data/semleg-ontology-filtered.ttl
+
+  extraction_output_csv: ${variables.extraction_provider_dir}/${variables.extraction_file_stem}.csv
+  extraction_input_copy_csv: ${variables.extraction_provider_dir}/${variables.extraction_file_stem}_input.csv
+  extraction_checkpoint_csv: ${variables.extraction_provider_dir}/${variables.extraction_file_stem}_checkpoint.csv
+
+  merge_file_stem: ${variables.extraction_file_stem}_reparsed_with_topics_normalized
+  merge_flat_output_csv: ${variables.extraction_provider_dir}/${paths.merge_file_stem}.csv
+  merge_nested_output_csv: ${variables.extraction_provider_dir}/triplets_in_row_${paths.merge_file_stem}.csv
+  merge_entity_mapping_csv: ${variables.extraction_provider_dir}/${variables.extraction_file_stem}_entity_mapping.csv
+  merge_entity_mapping_json: ${variables.extraction_provider_dir}/${variables.extraction_file_stem}_entity_mapping.json
+  merge_relation_mapping_csv: ${variables.extraction_provider_dir}/${variables.extraction_file_stem}_relation_mapping.csv
+  merge_relation_mapping_json: ${variables.extraction_provider_dir}/${variables.extraction_file_stem}_relation_mapping.json
+
+  clean_output_csv: ${variables.extraction_provider_dir}/${paths.merge_file_stem}_cleaned.csv
+  errors_output_csv: ${variables.extraction_provider_dir}/${paths.merge_file_stem}_errors_removed.csv
+  sample_output_csv: ${variables.extraction_provider_dir}/${paths.merge_file_stem}_sample_for_ontology_discovery.csv
+
+  discovery_output_dir: ${variables.discovery_provider_dir}
+  discovery_batch_results_json: ${paths.discovery_output_dir}/ontology_discovery_batches_final_two.json
+  discovery_candidate_model_json: ${paths.discovery_output_dir}/ontology_discovery_accumulated_candidate_model_final_two.json
+  discovery_final_owl_ttl: ${paths.discovery_output_dir}/ontology_discovery_final.ttl
+
+  owl_output_ttl: ${variables.dir_path}/ontology_extended_from_discovery.ttl
+  owl_output_dir: ${variables.dir_path}/owl
+
+stages:
+  - name: triplets_extraction_ontology_guided
+    enabled: true
+    script: src/dataset_creation/triples_extraction_ontology_guided.py
+    args:
+      input-csv: ${paths.raw_input_csv}
+      output-csv: ${paths.extraction_output_csv}
+      output-input-copy-csv: ${paths.extraction_input_copy_csv}
+      checkpoint-path: ${paths.extraction_checkpoint_csv}
+      constraints-base-path: ${paths.extraction_constraints_base_path}
+      constraints-full-path: ${paths.extraction_constraints_full_path}
+      provider: ${variables.extraction_provider}
+      model: ${variables.extraction_model}
+      constraint-mode: ${variables.extraction_constraint_mode}
+      constraints: ${variables.extraction_constraints}
+      batch-poll-interval: ${variables.extraction_batch_poll_interval}
+      delay: ${variables.extraction_delay}
+      max-concurrency: ${variables.extraction_max_concurrency}
+      checkpoint-every: ${variables.extraction_checkpoint_every}
+      max-rows: ${variables.input_subset_nrows}
+      request-timeout-seconds: ${variables.extraction_request_timeout_seconds}
+      max-retries: ${variables.extraction_max_retries}
+      retry-wait-seconds: ${variables.extraction_retry_wait_seconds}
+      resume-from-checkpoint: ${variables.extraction_resume_from_checkpoint}
+      openai-use-batch: ${variables.extraction_openai_use_batch}
+      mistral-use-batch: ${variables.extraction_mistral_use_batch}
+
+  - name: elements_merge_and_filtered
+    enabled: true
+    script: src/dataset_creation/elements_merge_and_filtered.py
+    args:
+      provider: ${variables.embedding_provider}
+      model: ${variables.embedding_model}
+      input-file: ${paths.extraction_output_csv}
+      output-file: ${paths.merge_flat_output_csv}
+      output-file-one-by-row: ${paths.merge_nested_output_csv}
+      entity-mapping-csv: ${paths.merge_entity_mapping_csv}
+      entity-mapping-json: ${paths.merge_entity_mapping_json}
+      relation-mapping-csv: ${paths.merge_relation_mapping_csv}
+      relation-mapping-json: ${paths.merge_relation_mapping_json}
+      topic-filter: ${variables.topic_filter}
+      entity-similarity-threshold: ${variables.entity_similarity_threshold}
+      relation-similarity-threshold: ${variables.relation_similarity_threshold}
+      relation-canonical-strategy: ${variables.relation_canonical_strategy}
+      batch-size: ${variables.merge_batch_size}
+
+  - name: prepare_data_for_ontology_discovery
+    enabled: true
+    script: src/dataset_creation/prepare_data_for_ontology_discovery.py
+    args:
+      input: ${paths.merge_flat_output_csv}
+      clean-output: ${paths.clean_output_csv}
+      errors-output: ${paths.errors_output_csv}
+      sample-output: ${paths.sample_output_csv}
+      sample-ratio: ${variables.sample_ratio}
+      random-state: ${variables.random_state}
+
+  - name: ontology_discovery_from_triplets
+    enabled: true
+    script: src/dataset_creation/ontology_discovery_from_triplets.py
+    args:
+      input-csv: ${paths.sample_output_csv}
+      ontology-path: ${paths.base_ontology_path}
+      provider: ${variables.discovery_provider}
+      model: ${variables.discovery_model}
+      batch-size: ${variables.discovery_batch_size}
+      output-dir: ${paths.discovery_output_dir}
+      batch-results-output: ${paths.discovery_batch_results_json}
+      candidate-model-output: ${paths.discovery_candidate_model_json}
+      final-owl-output: ${paths.discovery_final_owl_ttl}
+      run-step2: ${variables.discovery_run_step2}
+      mistral-use-batch: ${variables.discovery_mistral_use_batch}
+      include-previous-output-context: ${variables.discovery_include_previous_output_context}
+
+  - name: from_ontology_discovery_to_owl
+    enabled: true
+    script: src/dataset_creation/from_ontology_discovery_to_owl.py
+    args:
+      openai-json: ${paths.discovery_candidate_model_json}
+      mistral-json: ${paths.discovery_candidate_model_json}
+      base-ontology: ${paths.base_ontology_path}
+      output-ttl: ${paths.owl_output_ttl}
+      output-dir: ${paths.owl_output_dir}
+      confidence-threshold: ${variables.discovery_confidence_threshold}
+      from-discovery-json: true
+      discovery-source: ${variables.discovery_source}
+      no-metadata: ${variables.no_metadata}

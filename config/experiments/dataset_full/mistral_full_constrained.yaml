@@ -1,0 +1,13 @@
+inherits: ../../base_pipeline_dataset_full.yaml
+
+variables:
+  extraction_provider: mistral
+  extraction_model: mistral-large-latest
+  extended_ontology_variant: mistral
+  extraction_max_concurrency: 2
+  extraction_request_timeout_seconds: 90.0
+  extraction_max_retries: 3
+  extraction_retry_wait_seconds: 5.0
+
+paths:
+  extended_ontology_input_owl: ${variables.ont_ext_dir_path}/owl/ontology_extended_${variables.extended_ontology_variant}.ttl

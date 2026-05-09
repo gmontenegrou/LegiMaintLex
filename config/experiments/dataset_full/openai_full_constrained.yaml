@@ -1,0 +1,9 @@
+inherits: ../../base_pipeline_dataset_full.yaml
+
+variables:
+  extraction_provider: openai
+  extraction_model: gpt-4.1
+  extended_ontology_variant: openai
+
+paths:
+  extended_ontology_input_owl: ${variables.ont_ext_dir_path}/owl/ontology_extended_${variables.extended_ontology_variant}.ttl

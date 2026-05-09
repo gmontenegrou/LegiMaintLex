@@ -1,0 +1,17 @@
+inherits: ../../base_pipeline_ont_ext.yaml
+
+variables:
+  extraction_provider: mistral
+  extraction_model: mistral-large-latest
+  embedding_provider: mistral
+  embedding_model: mistral-embed
+  discovery_provider: mistral
+  discovery_model: mistral-large-latest
+  discovery_source: mistral
+  extraction_max_concurrency: 2
+  extraction_request_timeout_seconds: 90.0
+  extraction_max_retries: 3
+  extraction_retry_wait_seconds: 10.0
+  extraction_resume_from_checkpoint: true
+  extraction_mistral_use_batch: false
+  discovery_mistral_use_batch: false

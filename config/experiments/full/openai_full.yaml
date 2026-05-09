@@ -1,0 +1,10 @@
+inherits: ../../base_pipeline_ont_ext.yaml
+
+variables:
+  extraction_provider: openai
+  extraction_model: gpt-4.1
+  embedding_provider: openai
+  embedding_model: text-embedding-3-large
+  discovery_provider: gpt
+  discovery_model: gpt-4.1
+  discovery_source: openai
