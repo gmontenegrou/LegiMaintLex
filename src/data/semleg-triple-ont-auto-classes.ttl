@@ -1,0 +1,10 @@
+:Action a :Class ; :label "Action" ; :comment "The process of doing something." .
+:Actor a :Class ; :label "Actor" ; :comment "Entity (Person or Organization) that has the capacity to act." .
+:Artifact a :Class ; :label "Artifact" ; :comment "Material or immaterial object (Thing) involved in an action." .
+:Condition a :Class ; :label "Condition" ; :comment "A constraint specifying properties that must be satisfied." .
+:Definition a :Class ; :label "Definition" ; :comment "Legal provision defining the meaning of concepts." .
+:Location a :Class ; :label "Location" ; :comment "A place where an action can be carried out." .
+:Situation a :Class ; :label "Situation" ; :comment "Description of something that has happened or may happen." .
+:Source a :Class ; :label "Source" ; :comment "Textual mention of another legal source." .
+:Time a :Class ; :label "Time" ; :comment "Moment, duration, or occurrence of an action." .
+:Reason a :Class ; :label "Reason" ; :comment "The justification of an action." .
