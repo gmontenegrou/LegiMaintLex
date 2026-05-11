@@ -40,7 +40,6 @@ The ontology extension pipeline starts from ontology-guided extraction on a bala
 
 **Algorithm:** Multi-step ontology-guided triple extraction  
 **Implementation:** `triples_extraction_ontology_guided.py`  
-**Reference:** `alg:class_guided_triple_extraction`
 
 **Require:** Article set $A=\{a_1,\dots,a_n\}$ sampled from corpus $D$, core class set $C_{core}$, LLM provider $\rho$, model $m$  
 **Ensure:** Triple set $T_i$
@@ -60,8 +59,6 @@ The ontology extension pipeline starts from ontology-guided extraction on a bala
 
 **Algorithm:** Type-aware label fusion over maintenance triples  
 **Implementation:** `elements_merge_and_filtered.py`  
-**Reference:** `alg:type_aware_label_fusion`
-
 **Require:** Extracted triple set $T_i$, thresholds $\theta_E,\theta_P$, embedding provider $\rho$, embedding model $m$  
 **Ensure:** Fused maintenance triple set $T_{\mathrm{maint}}^{fused}$
 
@@ -76,11 +73,16 @@ The ontology extension pipeline starts from ontology-guided extraction on a bala
    - Replace each label in group by its canonical property label
 1. Return $T_{\mathrm{maint}}^{fused}$
 
+| Topic | Evidence (EN) | Evidence (FR) |
+|------|---------------|---------------|
+| *anotherLegalActivity* | "A health, safety and working conditions committee is established under the authority of the director of the Centre for Studies and Research on Qualifications." | "Il est créé auprès du directeur du Centre d'études et de recherches sur les qualifications un comité d'hygiène, de sécurité et des conditions de travail." |
+| *legalCrossReference* | "the minimum age required by Articles R. 221-5 and R. 221-6 of the Road Code" | "l'âge minimal requis par les articles R. 221-5 et R. 221-6 du code de la route" |
+| *maintenanceActivity* | "The calculation of the maximum short-circuit current ... based on: - the maximum voltage to which the installation may be subjected." | "Le calcul du courant de court-circuit maximum ... sur la base: - de la tension maximale à laquelle l'installation est susceptible d'être soumise." |
+
 ### 1.3 Preparation and Batch-Based Ontology Construction from Extracted Triple
 
 **Algorithm:** Preparation and Batch-Based Ontology Construction from Extracted Triples  
 **Implementation:** `prepare_data_for_ontology_discovery.py`, `ontology_discovery_from_triples.py`  
-**Reference:** `alg:rel_induction_in_ontology`
 
 **Require:** Maintenance triple $T_{\mathrm{maint}}^{fused}$ set, core ontology $O_{core}$, competency questions $Q$, LLM provider $\rho$, model $m$  
 **Ensure:** Candidate property set $P_{cand}$
@@ -141,7 +143,6 @@ After the ontology has been extended, run the full constrained extraction over t
 
 **Algorithm:** Signature-guided knowledge graph construction  
 **Implementation:** `triples_extraction_signature_guided.py`  
-**Reference:** `alg:signature_guided_kg_construction`
 
 **Require:** Article set $A=\{a_1,\dots,a_n\}$ from corpus $D$, classes $C_{new}$, new ontology $O_{new}$, LLM provider $\rho$, model $m$  
 **Ensure:** Signature-guided knowledge graph $G_{sig}$
