@@ -15,6 +15,16 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
+from ontologies_and_kg_combination import (
+    COMBINED_EMBEDDING_PROVIDER,
+    COMBINED_PROVIDER,
+    patch_combined_mapping_text,
+    prepare_combined_inputs,
+    provider_assets,
+    provider_choices,
+    rml_provenance_fields,
+)
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 BASE_RML = Path("src/data/csv_to_rml_mapping.ttl")
@@ -49,6 +59,14 @@ CURRENT_LEGAL_ACT_RE = re.compile(
 
 TRIPLET_RML_COLUMNS = [
     "source_row_id",
+    "extraction_provider",
+    "extraction_provider_label",
+    "extraction_model",
+    "extraction_source_file",
+    "extraction_provider_uri",
+    "relation_extraction_run_uri",
+    "relation_extraction_label",
+    "mention_extraction_activity_uri",
     "document_key",
     "article_id",
     "article_key",
@@ -81,6 +99,14 @@ TRIPLET_RML_COLUMNS = [
 
 MENTION_RML_COLUMNS = [
     "source_row_id",
+    "extraction_provider",
+    "extraction_provider_label",
+    "extraction_model",
+    "extraction_source_file",
+    "extraction_provider_uri",
+    "relation_extraction_run_uri",
+    "relation_extraction_label",
+    "mention_extraction_activity_uri",
     "triplet_index",
     "mention_role",
     "mention_uri",
@@ -124,25 +150,15 @@ class MergeOutputFiles:
 
 
 def provider_config(provider: str) -> ProviderConfig:
-    dataset_dir = Path("exp/kg") / provider
-    results = {
-        "mistral": dataset_dir
-        / "full_constrained_extraction_by_mistral_mistral-large-latest_nrows_6370.csv",
-        "openai": dataset_dir
-        / "full_constrained_extraction_by_openai_gpt-4.1_nrows_6370.csv",
-    }
-    if provider not in results:
-        raise ValueError(f"Unsupported provider: {provider}")
+    assets = provider_assets(provider)
 
     return ProviderConfig(
-        provider=provider,
-        provider_label={"mistral": "Mistral AI", "openai": "OpenAI"}[provider],
-        extraction_model={"mistral": "mistral-large-latest", "openai": "gpt-4.1"}[
-            provider
-        ],
-        results_csv=results[provider],
-        ontology_ttl=Path(f"exp/new_ontology/{provider}/ontology_extended_{provider}.ttl"),
-        rml_mapping=dataset_dir / f"csv_to_rml_mapping_{provider}_rules.ttl",
+        provider=assets.provider,
+        provider_label=assets.provider_label,
+        extraction_model=assets.extraction_model,
+        results_csv=assets.results_csv,
+        ontology_ttl=assets.ontology_ttl,
+        rml_mapping=assets.rml_mapping,
     )
 
 
@@ -225,6 +241,64 @@ def short_label(value: Any, max_chars: int = 50) -> str:
         return text
     cut = text[:max_chars].rsplit(" ", 1)[0].strip()
     return cut or text[:max_chars].strip()
+
+
+def label_sort_key(label: str, count: int) -> tuple[int, int, int, str]:
+    stripped = label.strip()
+    sentence_initial_upper = (
+        len(stripped) > 1
+        and stripped[0].isupper()
+        and stripped[1:].lower() == stripped[1:]
+    )
+    return (
+        count,
+        0 if sentence_initial_upper else 1,
+        len(stripped),
+        stripped,
+    )
+
+
+def choose_label_variant(labels: list[str]) -> str:
+    counts: dict[str, int] = {}
+    for label in labels:
+        if label:
+            counts[label] = counts.get(label, 0) + 1
+    if not counts:
+        return ""
+    return max(counts, key=lambda label: label_sort_key(label, counts[label]))
+
+
+def collapse_combined_entity_labels(triplet_rows: list[dict[str, str]]) -> None:
+    labels_by_entity: dict[str, dict[str, list[str]]] = {}
+    for row in triplet_rows:
+        for role in ("head", "tail"):
+            entity = row.get(f"{role}_uri", "")
+            if not entity:
+                continue
+            labels = labels_by_entity.setdefault(entity, {"pref": [], "alt": []})
+            pref_label = first(row.get(f"{role}_pref_label"), short_label(row.get(role)))
+            alt_label = first(row.get(role))
+            if pref_label:
+                labels["pref"].append(pref_label)
+            if alt_label:
+                labels["alt"].append(alt_label)
+
+    selected_labels = {
+        entity: {
+            "pref": choose_label_variant(labels["pref"]),
+            "alt": choose_label_variant(labels["alt"]),
+        }
+        for entity, labels in labels_by_entity.items()
+    }
+
+    for row in triplet_rows:
+        for role in ("head", "tail"):
+            entity = row.get(f"{role}_uri", "")
+            selected = selected_labels.get(entity)
+            if not selected:
+                continue
+            row[f"{role}_pref_label"] = selected["pref"]
+            row[role] = selected["alt"]
 
 
 def as_int(value: Any) -> int | None:
@@ -394,11 +468,15 @@ def triple_uri(
     article_key_value: str,
     source_row_id: str,
     triplet_index: str,
+    extraction_provider: str = "",
 ) -> str:
     extraction_anchor = first(article_id, source_row_id)
     article_anchor = first(article_key_value, source_row_id)
+    provider_scope = (
+        f"/{iri_part(extraction_provider)}" if not blank(extraction_provider) else ""
+    )
     return (
-        f"{INSTANCE_NS}/extraction/{iri_part(extraction_anchor)}"
+        f"{INSTANCE_NS}/extraction{provider_scope}/{iri_part(extraction_anchor)}"
         f"/article/{iri_part(article_anchor)}/triple/{iri_part(triplet_index)}"
     )
 
@@ -409,11 +487,15 @@ def mention_uri(
     source_row_id: str,
     triplet_index: str,
     role: str,
+    extraction_provider: str = "",
 ) -> str:
     extraction_anchor = first(article_id, source_row_id)
     article_anchor = first(article_key_value, source_row_id)
+    provider_scope = (
+        f"/{iri_part(extraction_provider)}" if not blank(extraction_provider) else ""
+    )
     return (
-        f"{INSTANCE_NS}/extraction/{iri_part(extraction_anchor)}"
+        f"{INSTANCE_NS}/extraction{provider_scope}/{iri_part(extraction_anchor)}"
         f"/article/{iri_part(article_anchor)}"
         f"/triple/{iri_part(triplet_index)}/mention/{iri_part(role)}"
     )
@@ -653,6 +735,20 @@ def create_triplet_and_mention_rml_sources(
         key = article_key(article_id, number, source_row_id)
         article = article_uri(doc_key, key)
         row_topic = first(result_row.get("context_main_topic"))
+        extraction_provider = first(
+            result_row.get("extraction_provider"),
+            "" if config.provider != COMBINED_PROVIDER else config.provider,
+        )
+        extraction_model = first(
+            result_row.get("extraction_model"),
+            config.extraction_model,
+        )
+        extraction_provenance = rml_provenance_fields(
+            extraction_provider or config.provider,
+            model=extraction_model,
+            source_file=result_row.get("extraction_source_file") or results_csv,
+        )
+        uri_provider_scope = first(result_row.get("extraction_provider"))
 
         for fallback_index, triplet in enumerate(
             as_triplets(result_row.get("legal_triplets"))
@@ -681,13 +777,18 @@ def create_triplet_and_mention_rml_sources(
             triplet_rows.append(
                 {
                     "source_row_id": source_row_id,
+                    **extraction_provenance,
                     "document_key": doc_key,
                     "article_id": article_id,
                     "article_key": key,
                     "article_number": number,
                     "article_uri": article,
                     "triple_uri": triple_uri(
-                        article_id, key, source_row_id, triplet_index
+                        article_id,
+                        key,
+                        source_row_id,
+                        triplet_index,
+                        uri_provider_scope,
                     ),
                     "triplet_index": triplet_index,
                     "head": head,
@@ -736,10 +837,16 @@ def create_triplet_and_mention_rml_sources(
                 mention_rows.append(
                     {
                         "source_row_id": source_row_id,
+                        **extraction_provenance,
                         "triplet_index": triplet_index,
                         "mention_role": role,
                         "mention_uri": mention_uri(
-                            article_id, key, source_row_id, triplet_index, role
+                            article_id,
+                            key,
+                            source_row_id,
+                            triplet_index,
+                            role,
+                            uri_provider_scope,
                         ),
                         "entity_uri": uri,
                         "document_key": doc_key,
@@ -753,6 +860,8 @@ def create_triplet_and_mention_rml_sources(
                     }
                 )
 
+    if config.provider == COMBINED_PROVIDER:
+        collapse_combined_entity_labels(triplet_rows)
     write_csv(triplets_csv, triplet_rows, TRIPLET_RML_COLUMNS)
     write_csv(mentions_csv, mention_rows, MENTION_RML_COLUMNS)
     return len(triplet_rows), len(mention_rows)
@@ -790,6 +899,10 @@ def patch_mapping_sources(config: ProviderConfig, sources: RmlSourceFiles) -> No
         text,
         count=1,
     )
+    text = text.replace('rml:reference "head_alt_label"', 'rml:reference "head"')
+    text = text.replace('rml:reference "tail_alt_label"', 'rml:reference "tail"')
+    if config.provider == COMBINED_PROVIDER:
+        text = patch_combined_mapping_text(text)
     mapping_path.write_text(text, encoding="utf-8")
 
 
@@ -869,11 +982,16 @@ def build_commands(
     if not args.skip_merge:
         check_path(MERGE_ELEMENTS, "Elements merge script")
         merge_outputs = merge_output_files(results_csv)
+        merge_provider = args.merge_provider or (
+            COMBINED_EMBEDDING_PROVIDER
+            if config.provider == COMBINED_PROVIDER
+            else config.provider
+        )
         merge_command = [
             sys.executable,
             str(MERGE_ELEMENTS),
             "--provider",
-            args.merge_provider or config.provider,
+            merge_provider,
             "--input-file",
             str(results_csv),
             "--output-file",
@@ -959,7 +1077,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--provider",
-        choices=["mistral", "openai", "all"],
+        choices=provider_choices(include_all=True),
         default="mistral",
     )
     parser.add_argument(
@@ -998,7 +1116,7 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help=(
             "Embedding provider for the pre-flatten merge step. Defaults to the "
-            "extraction provider."
+            "extraction provider, or OpenAI for combined mode."
         ),
     )
     parser.add_argument(
@@ -1059,10 +1177,17 @@ def main() -> None:
         raise ValueError(
             "--input can only be used with --provider mistral or --provider openai"
         )
+    if args.input is not None and COMBINED_PROVIDER in providers:
+        raise ValueError(
+            "--input cannot be used with --provider combined. "
+            "Combined mode builds its input from the OpenAI and Mistral CSVs."
+        )
     if args.kg_output is not None and len(providers) > 1:
         raise ValueError("--kg-output can only be used with a single provider")
 
     for provider in providers:
+        if provider == COMBINED_PROVIDER:
+            prepare_combined_inputs(dry_run=args.dry_run)
         config = provider_config(provider)
         results_csv = args.input or config.results_csv
         merged_results_csv = results_csv_after_merge(results_csv, args)
