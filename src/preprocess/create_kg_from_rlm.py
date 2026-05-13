@@ -270,7 +270,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--provider",
-        choices=["mistral", "openai", "all"],
+        choices=["mistral", "openai", "combined", "all"],
         default="mistral",
     )
     parser.add_argument("--mapping", type=Path, default=None)
