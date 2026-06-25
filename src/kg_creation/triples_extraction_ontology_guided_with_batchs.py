@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+from io import BytesIO
 import json
 import os
 import time
@@ -7,14 +8,21 @@ from pathlib import Path
 import pandas as pd
 import tiktoken
 from tqdm import tqdm
-from openai import AsyncOpenAI
-from mistralai import Mistral
+from openai import AsyncOpenAI, OpenAI
+from mistralai import File, Mistral
 from prompts import (
     build_prompt_topic_classification,
     build_prompt_triplets_extraction,
     build_prompt_entities_extraction_class_restricted,
     build_prompt_relations_extraction_fully_constrained_with_entities,
 )
+
+
+def build_prompt_step1(
+    context: str, constraints: str, constraint_mode: str = "partial"
+) -> str:
+    return build_prompt_triplets_extraction(context, constraints)
+
 
 def get_async_client(provider: str):
     provider_normalized = provider.strip().lower()
@@ -147,7 +155,7 @@ async def generate_text_with_retry(
                         model=model,
                         messages=[{"role": "user", "content": prompt}],
                         temperature=0,
-                        max_tokens=4000,
+                        max_output_tokens=4000,
                     )
 
                 response = await asyncio.wait_for(
@@ -182,6 +190,73 @@ async def generate_text_with_retry(
         f"LLM request failed after {max_retries} attempts "
         f"(provider={provider_normalized}, model={model}). Last error: {last_exception}"
     )
+
+
+def _extract_content_from_chat_body(body):
+    try:
+        msg = body["choices"][0]["message"]["content"]
+    except Exception:
+        return ""
+
+    if isinstance(msg, str):
+        return msg.strip()
+
+    if isinstance(msg, list):
+        chunks = []
+        for part in msg:
+            if isinstance(part, dict) and part.get("type") == "text":
+                chunks.append(str(part.get("text", "")))
+        return "".join(chunks).strip()
+
+    return str(msg).strip()
+
+
+def _build_result_row_from_output(idx, row, prompt1, triplets_output, usage, enc):
+    parsed_json = {"context_main_topic": "", "triples": []}
+    valid_json = False
+
+    try:
+        parsed, _ = extract_json_from_text(triplets_output)
+        valid_json = isinstance(parsed, dict) and isinstance(
+            parsed.get("triples"), list
+        )
+        if valid_json:
+            parsed_json = parsed
+    except Exception:
+        valid_json = False
+
+    usage_prompt_1, usage_completion_1 = extract_usage_tokens(usage)
+    step1_input_tokens = (
+        usage_prompt_1 if usage_prompt_1 is not None else count_tokens(enc, prompt1)
+    )
+    step1_output_tokens = (
+        usage_completion_1
+        if usage_completion_1 is not None
+        else count_tokens(enc, triplets_output)
+    )
+
+    provenance = {
+        "type_document": row.get("type"),
+        "title": row.get("title"),
+        "is_about": row.get("domain"),
+        "number": row.get("num"),
+        "id_local": row.get("id"),
+    }
+
+    return {
+        "index": idx,
+        "content": row.get("content", ""),
+        "context_main_topic": parsed_json.get("context_main_topic", ""),
+        "legal_triplets": parsed_json.get("triples", []),
+        "step1_raw_output": triplets_output,
+        "step1_payload": parsed_json,
+        "step1_valid_json": valid_json,
+        "step1_input_tokens": step1_input_tokens,
+        "step1_output_tokens": step1_output_tokens,
+        "total_input_tokens": step1_input_tokens,
+        "total_output_tokens": step1_output_tokens,
+        "provenance": provenance,
+    }
 
 
 def _extract_triplets_list(step1_output_text: str):
@@ -265,6 +340,375 @@ def compactify_triplets_for_topic_classification(
             }
         )
     return compact
+
+
+async def run_mistral_batch_step1(
+    df,
+    constraints,
+    model,
+    checkpoint_path,
+    batch_poll_interval=2.0,
+    constraint_mode="partial",
+):
+    if (constraint_mode or "").strip().lower() == "two_steps":
+        raise ValueError(
+            "constraint_mode='two_steps' is not supported with batch mode. "
+            "Use non-batch execution (mistral_use_batch=False)."
+        )
+
+    client = get_async_client("mistral")
+    enc = get_encoding_for_model(model)
+    Path(checkpoint_path).parent.mkdir(parents=True, exist_ok=True)
+
+    def _upload_and_create_job():
+        buffer = BytesIO()
+        for idx in range(len(df)):
+            row = df.iloc[idx]
+            prompt1 = build_prompt_step1(row["content"], constraints, constraint_mode)
+            request = {
+                "custom_id": str(idx),
+                "body": {
+                    "temperature": 0,
+                    "messages": [{"role": "user", "content": prompt1}],
+                },
+            }
+            buffer.write(json.dumps(request, ensure_ascii=False).encode("utf-8"))
+            buffer.write(b"\n")
+
+        input_file = client.files.upload(
+            file=File(file_name="batch_input.jsonl", content=buffer.getvalue()),
+            purpose="batch",
+        )
+        batch_job = client.batch.jobs.create(
+            input_files=[input_file.id],
+            model=model,
+            endpoint="/v1/chat/completions",
+            metadata={"job_type": "triplets_extraction_step1"},
+        )
+        return batch_job
+
+    batch_job = await asyncio.to_thread(_upload_and_create_job)
+    print(f"Created Mistral batch job: {batch_job.id}")
+
+    while batch_job.status in ["QUEUED", "RUNNING"]:
+        await asyncio.sleep(batch_poll_interval)
+        batch_job = await asyncio.to_thread(client.batch.jobs.get, job_id=batch_job.id)
+        total = getattr(batch_job, "total_requests", 0) or 0
+        succ = getattr(batch_job, "succeeded_requests", 0) or 0
+        fail = getattr(batch_job, "failed_requests", 0) or 0
+        done_pct = (100.0 * (succ + fail) / total) if total else 0.0
+        print(
+            f"Batch status={batch_job.status} total={total} "
+            f"succeeded={succ} failed={fail} done={done_pct:.1f}%"
+        )
+
+    print(f"Batch job {batch_job.id} finished with status={batch_job.status}")
+
+    output_lines = []
+    if getattr(batch_job, "output_file", None):
+        output_file = await asyncio.to_thread(
+            client.files.download, file_id=batch_job.output_file
+        )
+        for chunk in output_file.stream:
+            output_lines.extend(chunk.decode("utf-8").splitlines())
+
+    error_lines = []
+    if getattr(batch_job, "error_file", None):
+        error_file = await asyncio.to_thread(
+            client.files.download, file_id=batch_job.error_file
+        )
+        for chunk in error_file.stream:
+            error_lines.extend(chunk.decode("utf-8").splitlines())
+
+    outputs_by_id = {}
+    for line in output_lines:
+        if not line.strip():
+            continue
+        try:
+            item = json.loads(line)
+            custom_id = str(item.get("custom_id", ""))
+            body = item.get("response", {}).get("body", {})
+            text = _extract_content_from_chat_body(body)
+            usage = body.get("usage", None)
+            outputs_by_id[custom_id] = (text, usage)
+        except Exception:
+            continue
+
+    errors_by_id = {}
+    for line in error_lines:
+        if not line.strip():
+            continue
+        try:
+            item = json.loads(line)
+            custom_id = str(item.get("custom_id", ""))
+            errors_by_id[custom_id] = item
+        except Exception:
+            continue
+
+    results = []
+    for idx in tqdm(range(len(df)), desc="Building batch results", unit="row"):
+        row = df.iloc[idx]
+        context = row["content"]
+        prompt1 = build_prompt_step1(context, constraints, constraint_mode)
+        key = str(idx)
+
+        step1_5_input_tokens = 0
+        step1_5_output_tokens = 0
+
+        if key in outputs_by_id:
+            text, usage = outputs_by_id[key]
+            result = _build_result_row_from_output(idx, row, prompt1, text, usage, enc)
+            triplets, valid_step1 = _extract_triplets_list(text)
+            if valid_step1:
+                prompt1_5 = build_prompt_topic_classification(
+                    context, json.dumps(triplets, ensure_ascii=False)
+                )
+                try:
+                    topic_output, usage1_5 = await generate_text(
+                        client, "mistral", model, prompt1_5
+                    )
+                    u15_in, u15_out = extract_usage_tokens(usage1_5)
+                    step1_5_input_tokens = (
+                        u15_in if u15_in is not None else count_tokens(enc, prompt1_5)
+                    )
+                    step1_5_output_tokens = (
+                        u15_out
+                        if u15_out is not None
+                        else count_tokens(enc, topic_output)
+                    )
+                    topic_payload, _ = extract_json_from_text(topic_output)
+                    enriched_triplets = _merge_topics_into_triplets(
+                        triplets, topic_payload
+                    )
+                    result["legal_triplets"] = enriched_triplets
+                    result["step1_payload"] = {"triples": enriched_triplets}
+                except Exception:
+                    pass
+        else:
+            err = errors_by_id.get(key, {"error": "No output for request"})
+            text = f"ERROR: {json.dumps(err, ensure_ascii=False)}"
+            result = _build_result_row_from_output(idx, row, prompt1, text, None, enc)
+            result["step1_valid_json"] = False
+
+        result["step1_input_tokens"] = int(result["step1_input_tokens"]) + int(
+            step1_5_input_tokens
+        )
+        result["step1_output_tokens"] = int(result["step1_output_tokens"]) + int(
+            step1_5_output_tokens
+        )
+        result["total_input_tokens"] = result["step1_input_tokens"]
+        result["total_output_tokens"] = result["step1_output_tokens"]
+        results.append(result)
+
+    pd.DataFrame(results).to_csv(checkpoint_path, index=False)
+    return pd.DataFrame(sorted(results, key=lambda x: x["index"]))
+
+
+def _openai_content_to_bytes(content_obj):
+    if content_obj is None:
+        return b""
+
+    if isinstance(content_obj, bytes):
+        return content_obj
+
+    if hasattr(content_obj, "read"):
+        try:
+            data = content_obj.read()
+            if isinstance(data, bytes):
+                return data
+            if isinstance(data, str):
+                return data.encode("utf-8")
+        except Exception:
+            pass
+
+    raw = getattr(content_obj, "content", None)
+    if isinstance(raw, bytes):
+        return raw
+    if isinstance(raw, str):
+        return raw.encode("utf-8")
+
+    text = getattr(content_obj, "text", None)
+    if isinstance(text, str):
+        return text.encode("utf-8")
+
+    as_str = str(content_obj)
+    return as_str.encode("utf-8")
+
+
+async def run_openai_batch_step1(
+    df,
+    constraints,
+    model,
+    checkpoint_path,
+    batch_poll_interval=5.0,
+    constraint_mode="partial",
+):
+    if (constraint_mode or "").strip().lower() == "two_steps":
+        raise ValueError(
+            "constraint_mode='two_steps' is not supported with batch mode. "
+            "Use non-batch execution (openai_use_batch=False)."
+        )
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError("Missing OPENAI_API_KEY for openai batch.")
+
+    client = OpenAI(api_key=api_key)
+    openai_async_client = AsyncOpenAI(api_key=api_key)
+    enc = get_encoding_for_model(model)
+    Path(checkpoint_path).parent.mkdir(parents=True, exist_ok=True)
+
+    def _upload_and_create_batch():
+        buffer = BytesIO()
+        for idx in range(len(df)):
+            row = df.iloc[idx]
+            prompt1 = build_prompt_step1(row["content"], constraints, constraint_mode)
+            request = {
+                "custom_id": str(idx),
+                "method": "POST",
+                "url": "/v1/chat/completions",
+                "body": {
+                    "model": model,
+                    "temperature": 0,
+                    "messages": [{"role": "user", "content": prompt1}],
+                },
+            }
+            buffer.write(json.dumps(request, ensure_ascii=False).encode("utf-8"))
+            buffer.write(b"\n")
+
+        payload = buffer.getvalue()
+        uploaded = client.files.create(
+            file=("batch_input_openai.jsonl", payload, "application/jsonl"),
+            purpose="batch",
+        )
+
+        return client.batches.create(
+            input_file_id=uploaded.id,
+            endpoint="/v1/chat/completions",
+            completion_window="24h",
+            metadata={"job_type": "triplets_extraction_step1"},
+        )
+
+    batch_job = await asyncio.to_thread(_upload_and_create_batch)
+    print(f"Created OpenAI batch job: {batch_job.id}")
+
+    running_statuses = {"validating", "in_progress", "finalizing", "cancelling"}
+    while str(getattr(batch_job, "status", "")).lower() in running_statuses:
+        await asyncio.sleep(batch_poll_interval)
+        batch_job = await asyncio.to_thread(client.batches.retrieve, batch_job.id)
+        counts = getattr(batch_job, "request_counts", None)
+        if isinstance(counts, dict):
+            total = counts.get("total", 0) or 0
+            completed = counts.get("completed", 0) or 0
+            failed = counts.get("failed", 0) or 0
+        else:
+            total = getattr(counts, "total", 0) if counts is not None else 0
+            completed = getattr(counts, "completed", 0) if counts is not None else 0
+            failed = getattr(counts, "failed", 0) if counts is not None else 0
+        done_pct = (100.0 * (completed + failed) / total) if total else 0.0
+        print(
+            f"Batch status={batch_job.status} total={total} "
+            f"completed={completed} failed={failed} done={done_pct:.1f}%"
+        )
+
+    print(f"Batch job {batch_job.id} finished with status={batch_job.status}")
+
+    output_lines = []
+    output_file_id = getattr(batch_job, "output_file_id", None)
+    if output_file_id:
+        output_content = await asyncio.to_thread(client.files.content, output_file_id)
+        output_bytes = _openai_content_to_bytes(output_content)
+        output_lines = output_bytes.decode("utf-8").splitlines()
+
+    error_lines = []
+    error_file_id = getattr(batch_job, "error_file_id", None)
+    if error_file_id:
+        error_content = await asyncio.to_thread(client.files.content, error_file_id)
+        error_bytes = _openai_content_to_bytes(error_content)
+        error_lines = error_bytes.decode("utf-8").splitlines()
+
+    outputs_by_id = {}
+    for line in output_lines:
+        if not line.strip():
+            continue
+        try:
+            item = json.loads(line)
+            custom_id = str(item.get("custom_id", ""))
+            body = item.get("response", {}).get("body", {})
+            text = _extract_content_from_chat_body(body)
+            usage = body.get("usage", None)
+            outputs_by_id[custom_id] = (text, usage)
+        except Exception:
+            continue
+
+    errors_by_id = {}
+    for line in error_lines:
+        if not line.strip():
+            continue
+        try:
+            item = json.loads(line)
+            custom_id = str(item.get("custom_id", ""))
+            errors_by_id[custom_id] = item
+        except Exception:
+            continue
+
+    results = []
+    for idx in tqdm(range(len(df)), desc="Building batch results", unit="row"):
+        row = df.iloc[idx]
+        context = row["content"]
+        prompt1 = build_prompt_step1(context, constraints, constraint_mode)
+        key = str(idx)
+
+        step1_5_input_tokens = 0
+        step1_5_output_tokens = 0
+
+        if key in outputs_by_id:
+            text, usage = outputs_by_id[key]
+            result = _build_result_row_from_output(idx, row, prompt1, text, usage, enc)
+            triplets, valid_step1 = _extract_triplets_list(text)
+            if valid_step1:
+                prompt1_5 = build_prompt_topic_classification(
+                    context, json.dumps(triplets, ensure_ascii=False)
+                )
+                try:
+                    topic_output, usage1_5 = await generate_text(
+                        openai_async_client, "openai", model, prompt1_5
+                    )
+                    u15_in, u15_out = extract_usage_tokens(usage1_5)
+                    step1_5_input_tokens = (
+                        u15_in if u15_in is not None else count_tokens(enc, prompt1_5)
+                    )
+                    step1_5_output_tokens = (
+                        u15_out
+                        if u15_out is not None
+                        else count_tokens(enc, topic_output)
+                    )
+                    topic_payload, _ = extract_json_from_text(topic_output)
+                    enriched_triplets = _merge_topics_into_triplets(
+                        triplets, topic_payload
+                    )
+                    result["legal_triplets"] = enriched_triplets
+                    result["step1_payload"] = {"triples": enriched_triplets}
+                except Exception:
+                    pass
+        else:
+            err = errors_by_id.get(key, {"error": "No output for request"})
+            text = f"ERROR: {json.dumps(err, ensure_ascii=False)}"
+            result = _build_result_row_from_output(idx, row, prompt1, text, None, enc)
+            result["step1_valid_json"] = False
+
+        result["step1_input_tokens"] = int(result["step1_input_tokens"]) + int(
+            step1_5_input_tokens
+        )
+        result["step1_output_tokens"] = int(result["step1_output_tokens"]) + int(
+            step1_5_output_tokens
+        )
+        result["total_input_tokens"] = result["step1_input_tokens"]
+        result["total_output_tokens"] = result["step1_output_tokens"]
+        results.append(result)
+
+    pd.DataFrame(results).to_csv(checkpoint_path, index=False)
+    return pd.DataFrame(sorted(results, key=lambda x: x["index"]))
 
 
 async def _process_row(
@@ -528,6 +972,9 @@ async def run_two_step_pipeline_async(
     constraints_FULL,
     model="gpt-4.1",
     provider="openai",
+    mistral_use_batch=False,
+    openai_use_batch=False,
+    batch_poll_interval=2.0,
     delay=0.0,
     max_concurrency=10,
     checkpoint_every=500,
@@ -546,12 +993,24 @@ async def run_two_step_pipeline_async(
     print(
         f"Running pipeline with model={model}, provider={provider}, "
         f"delay={delay}s, max_concurrency={max_concurrency}, "
+        f"mistral_use_batch={mistral_use_batch}, "
+        f"openai_use_batch={openai_use_batch}, "
         f"constraint_mode={constraint_mode}, "
         f"constraints={constraints}"
     )
 
+    mode = (constraint_mode or "partial").strip().lower()
     if not constraints_BASE or not constraints_FULL:
         raise ValueError("Both constraints_BASE and constraints_FULL are required.")
+
+    if mode == "two_steps" and (mistral_use_batch or openai_use_batch):
+        raise ValueError(
+            "constraint_mode='two_steps' is not supported with batch mode."
+        )
+
+    constraints_for_single_step = (
+        constraints_BASE if mode == "partial" else constraints_FULL
+    )
 
     existing_results = []
     processed_indices: set[int] = set()
@@ -562,6 +1021,48 @@ async def run_two_step_pipeline_async(
                 f"Loaded {len(existing_results)} rows from checkpoint. "
                 f"Resuming {len(df) - len(processed_indices)} remaining rows."
             )
+
+    if provider == "mistral" and mistral_use_batch:
+        result_df = await run_mistral_batch_step1(
+            df=df,
+            constraints=constraints_for_single_step,
+            model=model,
+            checkpoint_path=checkpoint_path,
+            batch_poll_interval=batch_poll_interval,
+            constraint_mode=constraint_mode,
+        )
+        print(
+            "Token totals:"
+            f" input={int(result_df['total_input_tokens'].sum())},"
+            f" output={int(result_df['total_output_tokens'].sum())}"
+        )
+        elapsed_seconds = time.perf_counter() - process_start
+        print(
+            "Total processing time:"
+            f" {elapsed_seconds:.2f}s ({elapsed_seconds / 60:.2f} min)"
+        )
+        return result_df
+
+    if provider == "openai" and openai_use_batch:
+        result_df = await run_openai_batch_step1(
+            df=df,
+            constraints=constraints_for_single_step,
+            model=model,
+            checkpoint_path=checkpoint_path,
+            batch_poll_interval=batch_poll_interval,
+            constraint_mode=constraint_mode,
+        )
+        print(
+            "Token totals:"
+            f" input={int(result_df['total_input_tokens'].sum())},"
+            f" output={int(result_df['total_output_tokens'].sum())}"
+        )
+        elapsed_seconds = time.perf_counter() - process_start
+        print(
+            "Total processing time:"
+            f" {elapsed_seconds:.2f}s ({elapsed_seconds / 60:.2f} min)"
+        )
+        return result_df
 
     client = get_async_client(provider)
     enc = get_encoding_for_model(model)
@@ -868,10 +1369,16 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Constraint family identifier consumed inside the prompts.",
     )
     parser.add_argument(
+        "--batch-poll-interval",
+        type=float,
+        default=2.0,
+        help="Polling interval for OpenAI/Mistral batch jobs.",
+    )
+    parser.add_argument(
         "--delay",
         type=float,
         default=0.0,
-        help="Delay between async requests.",
+        help="Delay between async requests in non-batch mode.",
     )
     parser.add_argument(
         "--max-concurrency",
@@ -884,6 +1391,16 @@ def build_arg_parser() -> argparse.ArgumentParser:
         type=int,
         default=50,
         help="Save a checkpoint every N processed rows.",
+    )
+    parser.add_argument(
+        "--openai-use-batch",
+        action="store_true",
+        help="Use OpenAI batch API for step 1 when supported.",
+    )
+    parser.add_argument(
+        "--mistral-use-batch",
+        action="store_true",
+        help="Use Mistral batch API for step 1 when supported.",
     )
     parser.add_argument(
         "--debug-outputs",
@@ -973,6 +1490,9 @@ if __name__ == "__main__":
                 constraints_FULL=constraints_FULL,
                 model=args.model,
                 provider=args.provider,
+                mistral_use_batch=args.mistral_use_batch,
+                openai_use_batch=args.openai_use_batch,
+                batch_poll_interval=args.batch_poll_interval,
                 delay=args.delay,
                 max_concurrency=args.max_concurrency,
                 checkpoint_every=args.checkpoint_every,
