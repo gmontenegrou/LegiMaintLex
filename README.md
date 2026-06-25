@@ -21,7 +21,6 @@ Use Python 3.12 if possible. The repository was developed with a local virtual e
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
@@ -220,11 +219,25 @@ Run it for OpenAI:
 python src/kg_creation/csv_to_rdf_transform.py --provider openai
 ```
 
-Run it for both providers:
+Run it for both providers separately:
 
 ```powershell
 python src/kg_creation/csv_to_rdf_transform.py --provider all
 ```
+
+Run one combined OpenAI+Mistral KG:
+
+```powershell
+python src/kg_creation/csv_to_rdf_transform.py --provider combined
+```
+
+Combined mode first materializes:
+
+- combined extraction CSV: `exp/kg/combined/full_constrained_extraction_by_combined_openai_mistral_nrows_6370.csv`
+- combined ontology: `exp/new_ontology/combined/ontology_extended_combined.ttl`
+- combined manifest: `exp/kg/combined/combined_inputs_manifest.json`
+
+The combined KG keeps provider-specific extraction/provenance URIs, so OpenAI and Mistral triples from the same article do not overwrite each other.
 
 Dry run:
 

@@ -6,9 +6,8 @@ variables:
   extraction_provider: openai
   extraction_model: gpt-4.1
   extended_ontology_variant: ${variables.extraction_provider}
-  extraction_constraint_mode: fully_constrained
+  extraction_constraint_mode: two_steps
   extraction_constraints: triplets_ont
-  extraction_batch_poll_interval: 2.0
   extraction_delay: 0.0
   extraction_max_concurrency: 5
   extraction_checkpoint_every: 25
@@ -16,14 +15,12 @@ variables:
   extraction_max_retries: 3
   extraction_retry_wait_seconds: 5.0
   extraction_resume_from_checkpoint: true
-  extraction_openai_use_batch: false
-  extraction_mistral_use_batch: false
 
   turtle_light_mode: all
   ont_ext_dir_path: exp/new_ontology
 
   extraction_provider_dir: ${variables.dir_path}/${variables.extraction_provider}
-  extraction_file_stem: full_constrained_extraction_by_${variables.extraction_provider}_${variables.extraction_model}_nrows_${runtime.effective_input_nrows}
+  extraction_file_stem: ${variables.extraction_constraint_mode}_extraction_by_${variables.extraction_provider}_${variables.extraction_model}_nrows_${runtime.effective_input_nrows}
 
 paths:
   raw_input_csv: src/data/maintreg_database_clean.csv
@@ -60,7 +57,6 @@ stages:
       model: ${variables.extraction_model}
       constraint-mode: ${variables.extraction_constraint_mode}
       constraints: ${variables.extraction_constraints}
-      batch-poll-interval: ${variables.extraction_batch_poll_interval}
       delay: ${variables.extraction_delay}
       max-concurrency: ${variables.extraction_max_concurrency}
       checkpoint-every: ${variables.extraction_checkpoint_every}
@@ -69,5 +65,3 @@ stages:
       max-retries: ${variables.extraction_max_retries}
       retry-wait-seconds: ${variables.extraction_retry_wait_seconds}
       resume-from-checkpoint: ${variables.extraction_resume_from_checkpoint}
-      openai-use-batch: ${variables.extraction_openai_use_batch}
-      mistral-use-batch: ${variables.extraction_mistral_use_batch}

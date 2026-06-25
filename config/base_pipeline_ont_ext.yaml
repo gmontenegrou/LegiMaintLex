@@ -7,7 +7,6 @@ variables:
   extraction_model: gpt-4.1
   extraction_constraint_mode: two_steps
   extraction_constraints: classes
-  extraction_batch_poll_interval: 2.0
   extraction_delay: 0.0
   extraction_max_concurrency: 5
   extraction_checkpoint_every: 25
@@ -15,8 +14,6 @@ variables:
   extraction_max_retries: 3
   extraction_retry_wait_seconds: 5.0
   extraction_resume_from_checkpoint: false
-  extraction_openai_use_batch: false
-  extraction_mistral_use_batch: false
 
   embedding_provider: openai
   embedding_model: text-embedding-3-large
@@ -88,7 +85,6 @@ stages:
       model: ${variables.extraction_model}
       constraint-mode: ${variables.extraction_constraint_mode}
       constraints: ${variables.extraction_constraints}
-      batch-poll-interval: ${variables.extraction_batch_poll_interval}
       delay: ${variables.extraction_delay}
       max-concurrency: ${variables.extraction_max_concurrency}
       checkpoint-every: ${variables.extraction_checkpoint_every}
@@ -97,8 +93,6 @@ stages:
       max-retries: ${variables.extraction_max_retries}
       retry-wait-seconds: ${variables.extraction_retry_wait_seconds}
       resume-from-checkpoint: ${variables.extraction_resume_from_checkpoint}
-      openai-use-batch: ${variables.extraction_openai_use_batch}
-      mistral-use-batch: ${variables.extraction_mistral_use_batch}
 
   - name: elements_merge_and_filtered
     enabled: true

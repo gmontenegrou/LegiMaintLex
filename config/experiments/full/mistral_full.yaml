@@ -13,5 +13,4 @@ variables:
   extraction_max_retries: 3
   extraction_retry_wait_seconds: 10.0
   extraction_resume_from_checkpoint: true
-  extraction_mistral_use_batch: false
   discovery_mistral_use_batch: false
