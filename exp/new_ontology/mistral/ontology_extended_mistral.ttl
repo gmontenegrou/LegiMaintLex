@@ -1,4 +1,5 @@
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix semleg: <https://w3id.org/semleg#> .
 @prefix semlegm: <https://w3id.org/semleg/maintenance#> .
@@ -8,8 +9,8 @@
 
 semleg:hasCondition a owl:ObjectProperty ;
     rdfs:label "hasCondition"@en ;
-    rdfs:domain semleg:Action,
-        semleg:Source ;
+    rdfs:domain [ a owl:Class ;
+            owl:unionOf ( semleg:Action semleg:Source ) ] ;
     rdfs:range semleg:Condition .
 
 semleg:hasDefinition a owl:ObjectProperty ;
@@ -26,30 +27,6 @@ semleg:hasTime a owl:ObjectProperty ;
     rdfs:label "hasTime"@en ;
     rdfs:domain semleg:Action ;
     rdfs:range semleg:Time .
-
-semlegm:appliesTo a owl:ObjectProperty ;
-    rdfs:comment "Relates a condition to the action it governs or constrains."^^xsd:string,
-        "Relates a condition to the artifact to which it applies."^^xsd:string,
-        "Relates a legal source to the artifact it governs or regulates."^^xsd:string,
-        "Relates an action to the artifact that is the target or subject of the action."^^xsd:string,
-        "Relates an action to the legal or regulatory definition it applies to or is governed by."^^xsd:string,
-        "Relates an actor to another actor over which it has authority or jurisdiction."^^xsd:string ;
-    rdfs:domain semleg:Action,
-        semleg:Actor,
-        semleg:Condition,
-        semleg:Source ;
-    rdfs:range semleg:Action,
-        semleg:Actor,
-        semleg:Artifact,
-        semleg:Definition ;
-    semlegm:confidenceValue 0.85,
-        0.88,
-        0.9,
-        0.95,
-        0.98 ;
-    semlegm:textualEvidenceCount 1,
-        2,
-        4 .
 
 semlegm:appliesToArtifact a owl:ObjectProperty ;
     rdfs:comment "Relates a modality to the artifact it governs or applies to."^^xsd:string ;
@@ -79,6 +56,8 @@ semlegm:composedOf a owl:ObjectProperty ;
     semlegm:confidenceValue 0.85 ;
     semlegm:textualEvidenceCount 1 .
 
+semlegm:confidenceValue a owl:AnnotationProperty .
+
 semlegm:contains a owl:ObjectProperty ;
     rdfs:comment "Relates an artifact to an action that it contains or encompasses."^^xsd:string ;
     rdfs:domain semleg:Artifact ;
@@ -90,12 +69,12 @@ semlegm:definedBy a owl:ObjectProperty ;
     rdfs:comment "Relates an action to the legal definition that specifies its meaning."^^xsd:string,
         "Relates an action to the legal source that defines or specifies its meaning or requirements."^^xsd:string ;
     rdfs:domain semleg:Action ;
-    rdfs:range semleg:Definition,
-        semleg:Source ;
-    semlegm:confidenceValue 0.935,
-        0.95 ;
-    semlegm:textualEvidenceCount 1,
-        3 .
+    rdfs:range [ a owl:Class ;
+            owl:unionOf ( semleg:Definition semleg:Source ) ] ;
+    semlegm:confidenceValue [ a rdfs:Datatype ;
+            owl:oneOf ( 0.935 0.95 ) ] ;
+    semlegm:textualEvidenceCount [ a rdfs:Datatype ;
+            owl:oneOf ( 1 3 ) ] .
 
 semlegm:defines a owl:ObjectProperty ;
     rdfs:comment "Relates an artifact to a condition that it defines or specifies."^^xsd:string ;
@@ -142,34 +121,34 @@ semlegm:governsArtifact a owl:ObjectProperty ;
 semlegm:hasLocation a owl:ObjectProperty ;
     rdfs:comment "Relates a condition to the location where it applies."^^xsd:string,
         "Relates an action to the specific location where it is performed or applicable."^^xsd:string ;
-    rdfs:domain semleg:Action,
-        semleg:Condition ;
+    rdfs:domain [ a owl:Class ;
+            owl:unionOf ( semleg:Action semleg:Condition ) ] ;
     rdfs:range semleg:Location ;
-    semlegm:confidenceValue 0.8166666666666668,
-        0.92 ;
-    semlegm:textualEvidenceCount 1,
-        2 .
+    semlegm:confidenceValue [ a rdfs:Datatype ;
+            owl:oneOf ( 0.8166666666666668 0.92 ) ] ;
+    semlegm:textualEvidenceCount [ a rdfs:Datatype ;
+            owl:oneOf ( 1 2 ) ] .
 
 semlegm:hasModality a owl:ObjectProperty ;
     rdfs:comment "Relates an action to the modality (e.g., obligation, permission) under which it is performed."^^xsd:string ;
     rdfs:domain semleg:Action ;
-    rdfs:range semleg:Condition,
-        semlegm:Modality ;
-    semlegm:confidenceValue 0.85,
-        0.915 ;
-    semlegm:textualEvidenceCount 1,
-        5 .
+    rdfs:range [ a owl:Class ;
+            owl:unionOf ( semleg:Condition semlegm:Modality ) ] ;
+    semlegm:confidenceValue [ a rdfs:Datatype ;
+            owl:oneOf ( 0.85 0.915 ) ] ;
+    semlegm:textualEvidenceCount [ a rdfs:Datatype ;
+            owl:oneOf ( 1 5 ) ] .
 
 semlegm:hasReason a owl:ObjectProperty ;
     rdfs:comment "Relates a condition to the reason or purpose justifying its imposition."^^xsd:string,
         "Relates an action to the justification or purpose for which it is performed."^^xsd:string ;
-    rdfs:domain semleg:Action,
-        semleg:Condition ;
+    rdfs:domain [ a owl:Class ;
+            owl:unionOf ( semleg:Action semleg:Condition ) ] ;
     rdfs:range semleg:Reason ;
-    semlegm:confidenceValue 0.855,
-        0.9 ;
-    semlegm:textualEvidenceCount 1,
-        4 .
+    semlegm:confidenceValue [ a rdfs:Datatype ;
+            owl:oneOf ( 0.855 0.9 ) ] ;
+    semlegm:textualEvidenceCount [ a rdfs:Datatype ;
+            owl:oneOf ( 1 4 ) ] .
 
 semlegm:hasRecipient a owl:ObjectProperty ;
     rdfs:comment "Relates an action to the actor who is the recipient or beneficiary of the action's outcome."^^xsd:string ;
@@ -197,15 +176,13 @@ semlegm:includesAction a owl:ObjectProperty ;
         "Relates a situation to the actions that are part of or required by it."^^xsd:string,
         "Relates a source to the actions it prescribes or includes as part of its provisions."^^xsd:string,
         "Relates an artifact to the actions that are required or associated with it."^^xsd:string ;
-    rdfs:domain semleg:Action,
-        semleg:Artifact,
-        semleg:Situation,
-        semleg:Source ;
+    rdfs:domain [ a owl:Class ;
+            owl:unionOf ( semleg:Action semleg:Artifact semleg:Situation semleg:Source ) ] ;
     rdfs:range semleg:Action ;
-    semlegm:confidenceValue 0.87,
-        0.9 ;
-    semlegm:textualEvidenceCount 1,
-        2 .
+    semlegm:confidenceValue [ a rdfs:Datatype ;
+            owl:oneOf ( 0.87 0.9 ) ] ;
+    semlegm:textualEvidenceCount [ a rdfs:Datatype ;
+            owl:oneOf ( 1 2 ) ] .
 
 semlegm:includesSituation a owl:ObjectProperty ;
     rdfs:comment "Relates an action to a situation that describes its context or outcome."^^xsd:string ;
@@ -232,12 +209,12 @@ semlegm:justifiedBy a owl:ObjectProperty ;
     rdfs:comment "Relates an action to the legal source that justifies or defines its requirements."^^xsd:string,
         "Relates an action to the reason or justification for its execution."^^xsd:string ;
     rdfs:domain semleg:Action ;
-    rdfs:range semleg:Reason,
-        semleg:Source ;
-    semlegm:confidenceValue 0.8825000000000001,
-        0.8833333333333333 ;
-    semlegm:textualEvidenceCount 3,
-        6 .
+    rdfs:range [ a owl:Class ;
+            owl:unionOf ( semleg:Reason semleg:Source ) ] ;
+    semlegm:confidenceValue [ a rdfs:Datatype ;
+            owl:oneOf ( 0.8825000000000001 0.8833333333333333 ) ] ;
+    semlegm:textualEvidenceCount [ a rdfs:Datatype ;
+            owl:oneOf ( 3 6 ) ] .
 
 semlegm:locatedAt a owl:ObjectProperty ;
     rdfs:comment "Relates a source to the location where it can be accessed or is applicable."^^xsd:string ;
@@ -344,6 +321,8 @@ semlegm:takesFormOf a owl:ObjectProperty ;
     semlegm:confidenceValue 0.9 ;
     semlegm:textualEvidenceCount 1 .
 
+semlegm:textualEvidenceCount a owl:AnnotationProperty .
+
 semlegm:triggeredBy a owl:ObjectProperty ;
     rdfs:comment "Relates an action to the situation that necessitates or initiates its execution."^^xsd:string ;
     rdfs:domain semleg:Action ;
@@ -355,15 +334,13 @@ semlegm:triggers a owl:ObjectProperty ;
     rdfs:comment "Relates a situation to an action that is initiated as a consequence of that situation."^^xsd:string,
         "Relates an action to another action that it initiates or causes to occur."^^xsd:string,
         "Relates an artifact to the action it initiates or activates under specific conditions."^^xsd:string ;
-    rdfs:domain semleg:Action,
-        semleg:Artifact,
-        semleg:Situation ;
+    rdfs:domain [ a owl:Class ;
+            owl:unionOf ( semleg:Action semleg:Artifact semleg:Situation ) ] ;
     rdfs:range semleg:Action ;
-    semlegm:confidenceValue 0.85,
-        0.89,
-        0.9 ;
-    semlegm:textualEvidenceCount 1,
-        2 .
+    semlegm:confidenceValue [ a rdfs:Datatype ;
+            owl:oneOf ( 0.85 0.89 0.9 ) ] ;
+    semlegm:textualEvidenceCount [ a rdfs:Datatype ;
+            owl:oneOf ( 1 2 ) ] .
 
 semlegm:triggersSituation a owl:ObjectProperty ;
     rdfs:comment "Relates an action to a situation that it may cause or necessitate."^^xsd:string ;
@@ -390,13 +367,13 @@ semleg:Reason a owl:Class ;
     rdfs:label "Reason"@en ;
     rdfs:comment "The justification of an action."@en .
 
-semleg:Definition a owl:Class ;
-    rdfs:label "Definition"@en ;
-    rdfs:comment "Legal provision defining the meaning of concepts."@en .
-
 semleg:Time a owl:Class ;
     rdfs:label "Time"@en ;
     rdfs:comment "Moment, duration, or occurrence of an action."@en .
+
+semleg:Definition a owl:Class ;
+    rdfs:label "Definition"@en ;
+    rdfs:comment "Legal provision defining the meaning of concepts."@en .
 
 semleg:Location a owl:Class ;
     rdfs:label "Location"@en ;
@@ -404,21 +381,47 @@ semleg:Location a owl:Class ;
 
 semlegm:Modality a owl:Class .
 
+semlegm:appliesTo a owl:ObjectProperty ;
+    rdfs:comment "Relates a condition to the action it governs or constrains."^^xsd:string,
+        "Relates a condition to the artifact to which it applies."^^xsd:string,
+        "Relates a legal source to the artifact it governs or regulates."^^xsd:string,
+        "Relates an action to the artifact that is the target or subject of the action."^^xsd:string,
+        "Relates an action to the legal or regulatory definition it applies to or is governed by."^^xsd:string,
+        "Relates an actor to another actor over which it has authority or jurisdiction."^^xsd:string ;
+    rdfs:domain [ a owl:Class ;
+            owl:unionOf ( semleg:Action semleg:Actor semleg:Condition semleg:Source ) ] ;
+    rdfs:range [ a owl:Class ;
+            owl:unionOf ( semleg:Artifact semleg:Definition semleg:Actor semleg:Action ) ] ;
+    semlegm:confidenceValue [ a rdfs:Datatype ;
+            owl:oneOf ( 0.85 0.88 0.9 0.95 0.98 ) ] ;
+    semlegm:textualEvidenceCount [ a rdfs:Datatype ;
+            owl:oneOf ( 1 2 4 ) ] .
+
 semleg:Situation a owl:Class ;
     rdfs:label "Situation"@en ;
     rdfs:comment "Description of something that has happened or may happen."@en .
 
 semleg:Source a owl:Class ;
     rdfs:label "Source"@en ;
-    rdfs:comment "Textual mention of another legal source."@en .
-
-semleg:Actor a owl:Class ;
-    rdfs:label "Actor"@en ;
-    rdfs:comment "Entity (Person or Organization) that has the capacity to act."@en .
+    rdfs:comment "Textual mention of another legal source."@en ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:allValuesFrom semleg:Artifact ;
+            owl:onProperty semlegm:appliesTo ] .
 
 semleg:Condition a owl:Class ;
     rdfs:label "Condition"@en ;
-    rdfs:comment "A constraint specifying properties that must be satisfied."@en .
+    rdfs:comment "A constraint specifying properties that must be satisfied."@en ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:allValuesFrom [ a owl:Class ;
+                    owl:unionOf ( semleg:Action semleg:Artifact ) ] ;
+            owl:onProperty semlegm:appliesTo ] .
+
+semleg:Actor a owl:Class ;
+    rdfs:label "Actor"@en ;
+    rdfs:comment "Entity (Person or Organization) that has the capacity to act."@en ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:allValuesFrom semleg:Actor ;
+            owl:onProperty semlegm:appliesTo ] .
 
 semleg:Artifact a owl:Class ;
     rdfs:label "Artifact"@en ;
@@ -426,5 +429,9 @@ semleg:Artifact a owl:Class ;
 
 semleg:Action a owl:Class ;
     rdfs:label "Action"@en ;
-    rdfs:comment "The process of doing something."@en .
+    rdfs:comment "The process of doing something."@en ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:allValuesFrom [ a owl:Class ;
+                    owl:unionOf ( semleg:Artifact semleg:Definition ) ] ;
+            owl:onProperty semlegm:appliesTo ] .
 
