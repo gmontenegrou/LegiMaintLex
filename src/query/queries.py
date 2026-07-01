@@ -1,3 +1,213 @@
+## Queries to view in the new ontology
+
+ontology_properties_counts = """
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+
+SELECT (COUNT(DISTINCT ?p) AS ?nb_semlegm_object_properties)
+WHERE {
+  ?p a owl:ObjectProperty .
+  FILTER(STRSTARTS(STR(?p), "https://w3id.org/semleg/maintenance#"))
+}
+"""
+
+ontology_properites_list = """
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+
+SELECT DISTINCT ?p
+WHERE {
+  ?p a owl:ObjectProperty .
+  FILTER(STRSTARTS(STR(?p), "https://w3id.org/semleg/maintenance#"))
+}
+ORDER BY ?p
+"""
+
+ontology_semlegm_object_properties_count_corese = """
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX semlegm: <https://w3id.org/semleg/maintenance#>
+
+SELECT (COUNT(DISTINCT ?p) AS ?nb_semlegm_object_properties)
+WHERE {
+  ?p a owl:ObjectProperty .
+  FILTER(STRSTARTS(STR(?p), STR(semlegm:)))
+}
+"""
+
+ontology_semlegm_signatures_corese = """
+PREFIX owl:  <http://www.w3.org/2002/07/owl#>
+PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX semlegm: <https://w3id.org/semleg/maintenance#>
+
+SELECT DISTINCT ?domain ?p ?range ?source
+WHERE {
+  ?p a owl:ObjectProperty .
+  FILTER(STRSTARTS(STR(?p), STR(semlegm:)))
+
+  {
+    ?domain rdfs:subClassOf ?restriction .
+    ?restriction owl:onProperty ?p ;
+                 owl:allValuesFrom ?range .
+    FILTER(isIRI(?range))
+    BIND("restriction" AS ?source)
+  }
+  UNION
+  {
+    ?domain rdfs:subClassOf ?restriction .
+    ?restriction owl:onProperty ?p ;
+                 owl:allValuesFrom ?rangeExpression .
+    ?rangeExpression owl:unionOf ?rangeList .
+    ?rangeList rdf:rest*/rdf:first ?range .
+    BIND("restriction" AS ?source)
+  }
+  UNION
+  {
+    FILTER NOT EXISTS {
+      ?domainWithRestriction rdfs:subClassOf ?restrictionForProperty .
+      ?restrictionForProperty owl:onProperty ?p ;
+                              owl:allValuesFrom ?someRangeExpression .
+    }
+    ?p rdfs:domain ?domain ;
+       rdfs:range ?range .
+    FILTER(isIRI(?domain))
+    FILTER(isIRI(?range))
+    BIND("global domain/range" AS ?source)
+  }
+  UNION
+  {
+    FILTER NOT EXISTS {
+      ?domainWithRestriction rdfs:subClassOf ?restrictionForProperty .
+      ?restrictionForProperty owl:onProperty ?p ;
+                              owl:allValuesFrom ?someRangeExpression .
+    }
+    ?p rdfs:domain ?domain ;
+       rdfs:range ?rangeExpression .
+    FILTER(isIRI(?domain))
+    ?rangeExpression owl:unionOf ?rangeList .
+    ?rangeList rdf:rest*/rdf:first ?range .
+    BIND("global domain/range" AS ?source)
+  }
+  UNION
+  {
+    FILTER NOT EXISTS {
+      ?domainWithRestriction rdfs:subClassOf ?restrictionForProperty .
+      ?restrictionForProperty owl:onProperty ?p ;
+                              owl:allValuesFrom ?someRangeExpression .
+    }
+    ?p rdfs:domain ?domainExpression ;
+       rdfs:range ?range .
+    ?domainExpression owl:unionOf ?domainList .
+    ?domainList rdf:rest*/rdf:first ?domain .
+    FILTER(isIRI(?range))
+    BIND("global domain/range" AS ?source)
+  }
+  UNION
+  {
+    FILTER NOT EXISTS {
+      ?domainWithRestriction rdfs:subClassOf ?restrictionForProperty .
+      ?restrictionForProperty owl:onProperty ?p ;
+                              owl:allValuesFrom ?someRangeExpression .
+    }
+    ?p rdfs:domain ?domainExpression ;
+       rdfs:range ?rangeExpression .
+    ?domainExpression owl:unionOf ?domainList .
+    ?domainList rdf:rest*/rdf:first ?domain .
+    ?rangeExpression owl:unionOf ?rangeList .
+    ?rangeList rdf:rest*/rdf:first ?range .
+    BIND("global domain/range" AS ?source)
+  }
+}
+ORDER BY ?p ?domain ?range
+"""
+
+ontology_semlegm_signatures_count_corese = """
+PREFIX owl:  <http://www.w3.org/2002/07/owl#>
+PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX semlegm: <https://w3id.org/semleg/maintenance#>
+
+SELECT (COUNT(?signature) AS ?nb_semlegm_signatures)
+WHERE {
+  {
+    SELECT DISTINCT
+      (CONCAT(STR(?domain), "|", STR(?p), "|", STR(?range)) AS ?signature)
+    WHERE {
+      ?p a owl:ObjectProperty .
+      FILTER(STRSTARTS(STR(?p), STR(semlegm:)))
+
+      {
+        ?domain rdfs:subClassOf ?restriction .
+        ?restriction owl:onProperty ?p ;
+                     owl:allValuesFrom ?range .
+        FILTER(isIRI(?range))
+      }
+      UNION
+      {
+        ?domain rdfs:subClassOf ?restriction .
+        ?restriction owl:onProperty ?p ;
+                     owl:allValuesFrom ?rangeExpression .
+        ?rangeExpression owl:unionOf ?rangeList .
+        ?rangeList rdf:rest*/rdf:first ?range .
+      }
+      UNION
+      {
+        FILTER NOT EXISTS {
+          ?domainWithRestriction rdfs:subClassOf ?restrictionForProperty .
+          ?restrictionForProperty owl:onProperty ?p ;
+                                  owl:allValuesFrom ?someRangeExpression .
+        }
+        ?p rdfs:domain ?domain ;
+           rdfs:range ?range .
+        FILTER(isIRI(?domain))
+        FILTER(isIRI(?range))
+      }
+      UNION
+      {
+        FILTER NOT EXISTS {
+          ?domainWithRestriction rdfs:subClassOf ?restrictionForProperty .
+          ?restrictionForProperty owl:onProperty ?p ;
+                                  owl:allValuesFrom ?someRangeExpression .
+        }
+        ?p rdfs:domain ?domain ;
+           rdfs:range ?rangeExpression .
+        FILTER(isIRI(?domain))
+        ?rangeExpression owl:unionOf ?rangeList .
+        ?rangeList rdf:rest*/rdf:first ?range .
+      }
+      UNION
+      {
+        FILTER NOT EXISTS {
+          ?domainWithRestriction rdfs:subClassOf ?restrictionForProperty .
+          ?restrictionForProperty owl:onProperty ?p ;
+                                  owl:allValuesFrom ?someRangeExpression .
+        }
+        ?p rdfs:domain ?domainExpression ;
+           rdfs:range ?range .
+        ?domainExpression owl:unionOf ?domainList .
+        ?domainList rdf:rest*/rdf:first ?domain .
+        FILTER(isIRI(?range))
+      }
+      UNION
+      {
+        FILTER NOT EXISTS {
+          ?domainWithRestriction rdfs:subClassOf ?restrictionForProperty .
+          ?restrictionForProperty owl:onProperty ?p ;
+                                  owl:allValuesFrom ?someRangeExpression .
+        }
+        ?p rdfs:domain ?domainExpression ;
+           rdfs:range ?rangeExpression .
+        ?domainExpression owl:unionOf ?domainList .
+        ?domainList rdf:rest*/rdf:first ?domain .
+        ?rangeExpression owl:unionOf ?rangeList .
+        ?rangeList rdf:rest*/rdf:first ?range .
+      }
+    }
+  }
+}
+"""
+
+
+## Queries to view in the KG
+
 class_types_counts = """
 PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
