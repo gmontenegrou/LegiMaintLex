@@ -12,7 +12,6 @@ from rdflib import BNode, Graph, Literal, Namespace, URIRef
 from rdflib.collection import Collection
 from rdflib.namespace import OWL, RDF, RDFS
 
-
 DEFAULT_OUTPUT_DIR = Path("exp/evaluation_results")
 DEFAULT_TRIPLETS_COLUMN = "legal_triplets"
 SEMLEG_NS = "https://w3id.org/semleg#"
@@ -186,6 +185,33 @@ def unique_uri_refs(values: Iterable[Any]) -> set[URIRef]:
     return {value for value in values if isinstance(value, URIRef)}
 
 
+def class_expression_uri_refs(graph: Graph, expression: Any) -> set[URIRef]:
+    if isinstance(expression, URIRef):
+        return {expression}
+    if not isinstance(expression, BNode):
+        return set()
+
+    union_list = next(graph.objects(expression, OWL.unionOf), None)
+    if union_list is None:
+        return set()
+
+    classes: set[URIRef] = set()
+    for member in Collection(graph, union_list):
+        classes.update(class_expression_uri_refs(graph, member))
+    return classes
+
+
+def property_class_expression_values(
+    graph: Graph,
+    prop: URIRef,
+    predicate: URIRef,
+) -> set[URIRef]:
+    classes: set[URIRef] = set()
+    for expression in graph.objects(prop, predicate):
+        classes.update(class_expression_uri_refs(graph, expression))
+    return classes
+
+
 def build_local_uri_map(uris: Iterable[URIRef]) -> dict[str, set[str]]:
     out: dict[str, set[str]] = {}
     for uri in uris:
@@ -203,15 +229,59 @@ def load_ontology_rules(ontology_path: Path) -> OntologyRules:
     properties = unique_uri_refs(graph.subjects(RDF.type, OWL.ObjectProperty))
     properties.update(unique_uri_refs(graph.subjects(RDFS.domain, None)))
     properties.update(unique_uri_refs(graph.subjects(RDFS.range, None)))
+    properties.update(unique_uri_refs(graph.objects(None, OWL.onProperty)))
+
+    domains_by_property: dict[URIRef, set[URIRef]] = {}
+    ranges_by_property: dict[URIRef, set[URIRef]] = {}
+    for prop in properties:
+        domains = property_class_expression_values(graph, prop, RDFS.domain)
+        ranges = property_class_expression_values(graph, prop, RDFS.range)
+        domains_by_property[prop] = domains
+        ranges_by_property[prop] = ranges
+        classes.update(domains)
+        classes.update(ranges)
+
+    scoped_ranges_by_property_domain: dict[URIRef, dict[URIRef, set[URIRef]]] = {}
+    for domain, restriction in graph.subject_objects(RDFS.subClassOf):
+        if not isinstance(domain, URIRef) or not isinstance(restriction, BNode):
+            continue
+
+        restriction_props = unique_uri_refs(graph.objects(restriction, OWL.onProperty))
+        if not restriction_props:
+            continue
+
+        restriction_ranges: set[URIRef] = set()
+        for range_expression in graph.objects(restriction, OWL.allValuesFrom):
+            restriction_ranges.update(
+                class_expression_uri_refs(graph, range_expression)
+            )
+        if not restriction_ranges:
+            continue
+
+        classes.add(domain)
+        classes.update(restriction_ranges)
+        properties.update(restriction_props)
+        for prop in restriction_props:
+            scoped_ranges_by_property_domain.setdefault(prop, {}).setdefault(
+                domain,
+                set(),
+            ).update(restriction_ranges)
 
     signatures_full: set[tuple[str, str, str]] = set()
     for prop in properties:
-        domains = unique_uri_refs(graph.objects(prop, RDFS.domain))
-        ranges = unique_uri_refs(graph.objects(prop, RDFS.range))
-        classes.update(domains)
-        classes.update(ranges)
+        domains = domains_by_property.get(prop, set())
+        ranges = ranges_by_property.get(prop, set())
+        scoped_ranges_by_domain = scoped_ranges_by_property_domain.get(prop, {})
+
         for domain in domains:
-            for range_cls in ranges:
+            allowed_ranges = scoped_ranges_by_domain.get(domain, ranges)
+            for range_cls in allowed_ranges:
+                signatures_full.add((str(domain), str(prop), str(range_cls)))
+
+        for domain, scoped_ranges in scoped_ranges_by_domain.items():
+            if domain in domains:
+                continue
+            for range_cls in scoped_ranges:
                 signatures_full.add((str(domain), str(prop), str(range_cls)))
 
     signatures_local = {
@@ -271,9 +341,7 @@ def build_shacl_graph_from_rules(rules: OntologyRules) -> Graph:
 
             sorted_ranges = sorted(range_uris)
             if len(sorted_ranges) == 1:
-                shacl_graph.add(
-                    (property_shape, SH["class"], URIRef(sorted_ranges[0]))
-                )
+                shacl_graph.add((property_shape, SH["class"], URIRef(sorted_ranges[0])))
                 continue
 
             sh_or_list = BNode()
@@ -697,9 +765,7 @@ def evaluate_file(
             sorted(extracted_class_locals_not_in_ontology)
         ),
         "classes_total_mentions": int(total_class_mentions),
-        "classes_mentions_defined_in_ontology": int(
-            class_mentions_defined_in_ontology
-        ),
+        "classes_mentions_defined_in_ontology": int(class_mentions_defined_in_ontology),
         "classes_mentions_not_in_ontology": int(class_mentions_not_in_ontology),
         "classes_mentions_defined_in_ontology_ratio": ratio(
             class_mentions_defined_in_ontology,
@@ -716,9 +782,7 @@ def evaluate_file(
             len(extracted_class_locals_defined_in_ontology),
             len(extracted_class_locals),
         ),
-        "nb_triples_domain_range_signature_not_allowed": int(
-            domain_range_violations
-        ),
+        "nb_triples_domain_range_signature_not_allowed": int(domain_range_violations),
         "domain_range_signature_not_allowed_ratio": ratio(
             domain_range_violations,
             total_triplets,
@@ -734,9 +798,7 @@ def evaluate_file(
             object_property_mentions_defined_in_ontology,
             total_object_property_mentions,
         ),
-        "object_property_unique_extracted": int(
-            len(extracted_object_property_locals)
-        ),
+        "object_property_unique_extracted": int(len(extracted_object_property_locals)),
         "object_property_unique_defined_in_ontology": int(
             len(extracted_object_property_locals_defined_in_ontology)
         ),
@@ -906,11 +968,7 @@ def evaluate_kg(
         tail_types = resource_types.get(obj, set())
 
         if relation_uri not in relation_uris:
-            if (
-                is_semleg_relation_candidate(predicate)
-                and head_types
-                and tail_types
-            ):
+            if is_semleg_relation_candidate(predicate) and head_types and tail_types:
                 predicate_not_in_ontology += 1
                 detail_rows.append(
                     {
@@ -1071,7 +1129,11 @@ def targets_from_args(args: argparse.Namespace) -> list[EvaluationTarget]:
             )
         ]
 
-    providers = DEFAULT_TARGETS if args.provider == "all" else {args.provider: DEFAULT_TARGETS[args.provider]}
+    providers = (
+        DEFAULT_TARGETS
+        if args.provider == "all"
+        else {args.provider: DEFAULT_TARGETS[args.provider]}
+    )
     return list(providers.values())
 
 
