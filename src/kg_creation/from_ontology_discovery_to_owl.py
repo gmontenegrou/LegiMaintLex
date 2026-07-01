@@ -70,6 +70,17 @@ def _build_prefix_map_from_graph(graph) -> dict[str, str]:
     return prefix_map
 
 
+def _ordered_unique(values: list[Any]) -> list[Any]:
+    seen = set()
+    unique = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        unique.append(value)
+    return unique
+
+
 def _local_name(iri: str) -> str:
     value = _as_str(iri)
     if not value:
@@ -269,9 +280,99 @@ def _extend_ontology_from_prepared_df(
     output_ttl_path: Path,
     base_iri: str,
     include_metadata: bool,
+    metadata_mode: str,
 ):
-    from rdflib import Graph, Literal, URIRef
+    from rdflib import BNode, Graph, Literal, URIRef
+    from rdflib.collection import Collection
     from rdflib.namespace import OWL, RDF, RDFS, XSD
+
+    def make_class_expression(graph: Graph, classes: list[URIRef]):
+        unique_classes = _ordered_unique(classes)
+        if not unique_classes:
+            return None
+
+        if len(unique_classes) == 1:
+            return unique_classes[0]
+
+        union_node = BNode()
+        class_list_node = BNode()
+        Collection(graph, class_list_node, unique_classes)
+        graph.add((union_node, RDF.type, OWL.Class))
+        graph.add((union_node, OWL.unionOf, class_list_node))
+        return union_node
+
+    def add_class_expression_property(
+        graph: Graph,
+        prop: URIRef,
+        predicate: URIRef,
+        classes: list[URIRef],
+    ):
+        class_expression = make_class_expression(graph, classes)
+        if class_expression is not None:
+            graph.add((prop, predicate, class_expression))
+
+    def add_scoped_range_restriction(
+        graph: Graph,
+        domain_class: URIRef,
+        prop: URIRef,
+        range_classes: list[URIRef],
+    ):
+        range_expression = make_class_expression(graph, range_classes)
+        if range_expression is None:
+            return
+
+        restriction = BNode()
+        graph.add((restriction, RDF.type, OWL.Restriction))
+        graph.add((restriction, OWL.onProperty, prop))
+        graph.add((restriction, OWL.allValuesFrom, range_expression))
+        graph.add((domain_class, RDFS.subClassOf, restriction))
+
+    def add_literal_set_property(
+        graph: Graph,
+        prop: URIRef,
+        predicate: URIRef,
+        values: list[Any],
+        datatype: URIRef,
+        mode: str,
+    ):
+        unique_values = _ordered_unique(values)
+        try:
+            unique_values = sorted(unique_values)
+        except TypeError:
+            pass
+
+        literals = [Literal(value, datatype=datatype) for value in unique_values]
+        if not literals:
+            return
+
+        if mode == "property" or len(literals) == 1:
+            for literal in literals:
+                graph.add((prop, predicate, literal))
+            return
+
+        data_range = BNode()
+        literal_list = BNode()
+        Collection(graph, literal_list, literals)
+        graph.add((data_range, RDF.type, RDFS.Datatype))
+        graph.add((data_range, OWL.oneOf, literal_list))
+        graph.add((prop, predicate, data_range))
+
+    def normalize_repeated_class_expression_properties(graph: Graph):
+        for prop in list(graph.subjects(RDF.type, OWL.ObjectProperty)):
+            for predicate in (RDFS.domain, RDFS.range):
+                class_expressions = _ordered_unique(
+                    list(graph.objects(prop, predicate))
+                )
+                if len(class_expressions) <= 1:
+                    continue
+
+                graph.remove((prop, predicate, None))
+                add_class_expression_property(
+                    graph=graph,
+                    prop=prop,
+                    predicate=predicate,
+                    classes=class_expressions,
+                )
 
     g = Graph()
     g.parse(str(base_ontology_path), format="turtle")
@@ -280,6 +381,18 @@ def _extend_ontology_from_prepared_df(
     existing_ns_values = {str(ns) for _, ns in g.namespace_manager.namespaces()}
     if base_iri not in existing_ns_values:
         g.bind("semlegm", base_iri, override=False)
+
+    if include_metadata:
+        g.add((URIRef(f"{base_iri}confidenceValue"), RDF.type, OWL.AnnotationProperty))
+        g.add(
+            (
+                URIRef(f"{base_iri}textualEvidenceCount"),
+                RDF.type,
+                OWL.AnnotationProperty,
+            )
+        )
+
+    normalize_repeated_class_expression_properties(g)
 
     existing_object_properties: dict[str, URIRef] = {}
     existing_classes: dict[str, URIRef] = {}
@@ -293,6 +406,11 @@ def _extend_ontology_from_prepared_df(
         local = _local_name(str(subject))
         if local and local not in existing_classes:
             existing_classes[local] = subject
+
+    property_constraints: dict[
+        URIRef,
+        dict[str, Any],
+    ] = {}
 
     for _, row in prepared.iterrows():
         prop_q = _to_qname(row["canonical_relation"], default_prefix="semlegm")
@@ -314,8 +432,19 @@ def _extend_ontology_from_prepared_df(
         g.add((dom, RDF.type, OWL.Class))
         g.add((rng, RDF.type, OWL.Class))
         g.add((prop, RDF.type, OWL.ObjectProperty))
-        g.add((prop, RDFS.domain, dom))
-        g.add((prop, RDFS.range, rng))
+        constraints = property_constraints.setdefault(
+            prop,
+            {
+                "domains": [],
+                "ranges": [],
+                "ranges_by_domain": {},
+                "confidence_values": [],
+                "evidence_counts": [],
+            },
+        )
+        constraints["domains"].append(dom)
+        constraints["ranges"].append(rng)
+        constraints["ranges_by_domain"].setdefault(dom, []).append(rng)
 
         if prop_local and prop_local not in existing_object_properties:
             existing_object_properties[prop_local] = prop
@@ -332,24 +461,12 @@ def _extend_ontology_from_prepared_df(
             if confidence is not None and not (
                 isinstance(confidence, float) and pd.isna(confidence)
             ):
-                g.add(
-                    (
-                        prop,
-                        URIRef(f"{base_iri}confidenceValue"),
-                        Literal(float(confidence), datatype=XSD.decimal),
-                    )
-                )
+                constraints["confidence_values"].append(float(confidence))
 
             if evidence_count is not None and not (
                 isinstance(evidence_count, float) and pd.isna(evidence_count)
             ):
-                g.add(
-                    (
-                        prop,
-                        URIRef(f"{base_iri}textualEvidenceCount"),
-                        Literal(int(evidence_count), datatype=XSD.integer),
-                    )
-                )
+                constraints["evidence_counts"].append(int(evidence_count))
 
             if definition_text:
                 g.add(
@@ -359,6 +476,35 @@ def _extend_ontology_from_prepared_df(
                         Literal(definition_text, datatype=XSD.string),
                     )
                 )
+
+    for prop, constraints in property_constraints.items():
+        g.remove((prop, RDFS.domain, None))
+        g.remove((prop, RDFS.range, None))
+        add_class_expression_property(g, prop, RDFS.domain, constraints["domains"])
+        add_class_expression_property(g, prop, RDFS.range, constraints["ranges"])
+        unique_domains = _ordered_unique(constraints["domains"])
+        unique_ranges = _ordered_unique(constraints["ranges"])
+        if len(unique_domains) > 1 and len(unique_ranges) > 1:
+            for dom, ranges in constraints["ranges_by_domain"].items():
+                add_scoped_range_restriction(g, dom, prop, ranges)
+
+        if include_metadata:
+            add_literal_set_property(
+                graph=g,
+                prop=prop,
+                predicate=URIRef(f"{base_iri}confidenceValue"),
+                values=constraints["confidence_values"],
+                datatype=XSD.decimal,
+                mode=metadata_mode,
+            )
+            add_literal_set_property(
+                graph=g,
+                prop=prop,
+                predicate=URIRef(f"{base_iri}textualEvidenceCount"),
+                values=constraints["evidence_counts"],
+                datatype=XSD.integer,
+                mode=metadata_mode,
+            )
 
     output_ttl_path.parent.mkdir(parents=True, exist_ok=True)
     g.serialize(destination=str(output_ttl_path), format="turtle")
@@ -371,6 +517,7 @@ def extend_ontology_from_canonical_csv(
     base_iri: str = "https://w3id.org/semleg/maintenance#",
     relation_preference: str = "agreement_then_openai",
     include_metadata: bool = True,
+    metadata_mode: str = "one-of",
 ):
     df = pd.read_csv(input_csv_path)
     _validate_input_columns(df)
@@ -381,6 +528,7 @@ def extend_ontology_from_canonical_csv(
         output_ttl_path=output_ttl_path,
         base_iri=base_iri,
         include_metadata=include_metadata,
+        metadata_mode=metadata_mode,
     )
 
 
@@ -390,6 +538,7 @@ def extend_ontology_from_dataframe(
     output_ttl_path: Path,
     base_iri: str = "https://w3id.org/semleg/maintenance#",
     include_metadata: bool = True,
+    metadata_mode: str = "one-of",
 ):
     _validate_input_columns(df)
     prepared = df.rename(columns={"object_prop_candidate": "canonical_relation"}).copy()
@@ -399,6 +548,7 @@ def extend_ontology_from_dataframe(
         output_ttl_path=output_ttl_path,
         base_iri=base_iri,
         include_metadata=include_metadata,
+        metadata_mode=metadata_mode,
     )
 
 
@@ -453,6 +603,16 @@ def parse_args():
         "--no-metadata",
         action="store_true",
         help="Do not add confidence/evidence metadata triples.",
+    )
+    parser.add_argument(
+        "--metadata-mode",
+        choices=["property", "one-of"],
+        default="one-of",
+        help=(
+            "How to write repeated metadata values. 'property' writes repeated "
+            "literal triples directly on the property. 'one-of' writes repeated "
+            "literal values as an OWL data enumeration with owl:oneOf."
+        ),
     )
     return parser.parse_args()
 
@@ -511,6 +671,7 @@ def main():
                 output_ttl_path=output_path,
                 base_iri=args.base_iri,
                 include_metadata=not args.no_metadata,
+                metadata_mode=args.metadata_mode,
             )
             print(
                 f"[{label}] Extended ontology saved at: {output_path} "
@@ -525,6 +686,7 @@ def main():
         base_iri=args.base_iri,
         relation_preference=args.relation_preference,
         include_metadata=not args.no_metadata,
+        metadata_mode=args.metadata_mode,
     )
 
     print(f"Extended ontology saved at: {args.output_ttl}")
