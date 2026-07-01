@@ -12,9 +12,10 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-from typing import Set
+from typing import Any, Set
 
-from rdflib import Graph, Literal, Namespace, URIRef
+from rdflib import BNode, Graph, Literal, Namespace, URIRef
+from rdflib.collection import Collection
 from rdflib.namespace import OWL, RDF, RDFS
 
 DEFAULT_INPUT_OWL = Path("exp/new_ontology/ontology_extended_from_canonical.ttl")
@@ -82,11 +83,114 @@ def escape_literal(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
-def render_term(term) -> str:
+def unique_preserve_order(values: list[Any]) -> list[Any]:
+    seen = set()
+    unique = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        unique.append(value)
+    return unique
+
+
+def class_expression_members(g: Graph, expression: Any) -> list[URIRef]:
+    if isinstance(expression, URIRef):
+        return [expression]
+    if not isinstance(expression, BNode):
+        return []
+
+    union_list = next(g.objects(expression, OWL.unionOf), None)
+    if union_list is None:
+        return []
+
+    members: list[URIRef] = []
+    for member in Collection(g, union_list):
+        members.extend(class_expression_members(g, member))
+    return unique_preserve_order(members)
+
+
+def literal_enumeration_members(g: Graph, expression: Any) -> list[Literal]:
+    if not isinstance(expression, BNode):
+        return []
+
+    one_of_list = next(g.objects(expression, OWL.oneOf), None)
+    if one_of_list is None:
+        return []
+
+    return [
+        member for member in Collection(g, one_of_list) if isinstance(member, Literal)
+    ]
+
+
+def is_restriction(g: Graph, term: Any) -> bool:
+    if not isinstance(term, BNode):
+        return False
+    return (
+        (term, RDF.type, OWL.Restriction) in g
+        or (term, OWL.onProperty, None) in g
+        or (term, OWL.allValuesFrom, None) in g
+    )
+
+
+def render_class_expression(g: Graph, expression: Any) -> str:
+    members = class_expression_members(g, expression)
+    if not members:
+        return render_term(g, expression)
+    if len(members) == 1:
+        return render_iri(members[0])
+    return "(" + " OR ".join(render_iri(member) for member in members) + ")"
+
+
+def render_literal_enumeration(g: Graph, expression: Any) -> str:
+    members = literal_enumeration_members(g, expression)
+    return "(" + " OR ".join(render_term(g, member) for member in members) + ")"
+
+
+def render_restriction(g: Graph, restriction: BNode) -> str:
+    on_properties = [
+        prop
+        for prop in g.objects(restriction, OWL.onProperty)
+        if isinstance(prop, URIRef)
+    ]
+    all_values_from = list(g.objects(restriction, OWL.allValuesFrom))
+
+    parts = ["a :Restriction"]
+    if on_properties:
+        rendered_props = ", ".join(render_iri(prop) for prop in on_properties)
+        parts.append(f":onProperty {rendered_props}")
+    if all_values_from:
+        rendered_ranges = ", ".join(
+            render_class_expression(g, range_expression)
+            for range_expression in all_values_from
+        )
+        parts.append(f":allValuesFrom {rendered_ranges}")
+
+    return "[" + " ; ".join(parts) + "]"
+
+
+def render_bnode(g: Graph, term: BNode) -> str:
+    class_members = class_expression_members(g, term)
+    if class_members:
+        return render_class_expression(g, term)
+
+    literal_members = literal_enumeration_members(g, term)
+    if literal_members:
+        return render_literal_enumeration(g, term)
+
+    if is_restriction(g, term):
+        return render_restriction(g, term)
+
+    return "[]"
+
+
+def render_term(g: Graph, term) -> str:
     if isinstance(term, URIRef):
         return render_iri(term)
     if isinstance(term, Literal):
         return f'"{escape_literal(str(term))}"'
+    if isinstance(term, BNode):
+        return render_bnode(g, term)
     return f'"{escape_literal(str(term))}"'
 
 
@@ -143,12 +247,12 @@ def build_turtle_light(g: Graph, mode: str) -> str:
             g.predicate_objects(subject),
             key=lambda item: (
                 predicate_sort_key(item[0]),
-                render_term(item[1]).lower(),
+                render_term(g, item[1]).lower(),
             ),
         ):
             if local_name(predicate) in EXCLUDED_PREDICATE_LOCAL_NAMES:
                 continue
-            predicate_map.setdefault(predicate, []).append(render_term(obj))
+            predicate_map.setdefault(predicate, []).append(render_term(g, obj))
 
         statements: list[str] = []
         for predicate in sorted(predicate_map, key=predicate_sort_key):
