@@ -1,24 +1,44 @@
 ## Queries to view in the new ontology
 
 ontology_properties_counts = """
-PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX semleg:  <https://w3id.org/semleg#>
+PREFIX semlegm: <https://w3id.org/semleg/maintenance#>
 
-SELECT (COUNT(DISTINCT ?p) AS ?nb_semlegm_object_properties)
+SELECT (COUNT(DISTINCT ?predicate_local_name) AS ?n_distinct_predicates)
 WHERE {
-  ?p a owl:ObjectProperty .
-  FILTER(STRSTARTS(STR(?p), "https://w3id.org/semleg/maintenance#"))
+  ?statement a semleg:ExtractedRelation ;
+             rdf:predicate ?predicate .
+
+  FILTER(
+    STRSTARTS(STR(?predicate), STR(semleg:)) ||
+    STRSTARTS(STR(?predicate), STR(semlegm:))
+  )
+
+  BIND(REPLACE(STR(?predicate), "^.*/|^.*#", "") AS ?predicate_local_name)
 }
 """
 
 ontology_properites_list = """
-PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX semleg:  <https://w3id.org/semleg#>
+PREFIX semlegm: <https://w3id.org/semleg/maintenance#>
 
-SELECT DISTINCT ?p
+SELECT ?predicate_local_name
+       (COUNT(DISTINCT ?statement) AS ?n_examples)
 WHERE {
-  ?p a owl:ObjectProperty .
-  FILTER(STRSTARTS(STR(?p), "https://w3id.org/semleg/maintenance#"))
+  ?statement a semleg:ExtractedRelation ;
+             rdf:predicate ?predicate .
+
+  FILTER(
+    STRSTARTS(STR(?predicate), STR(semleg:)) ||
+    STRSTARTS(STR(?predicate), STR(semlegm:))
+  )
+
+  BIND(REPLACE(STR(?predicate), "^.*/|^.*#", "") AS ?predicate_local_name)
 }
-ORDER BY ?p
+GROUP BY ?predicate_local_name
+ORDER BY DESC(?n_examples) ?predicate_local_name
 """
 
 ## Queries to view in the KG
