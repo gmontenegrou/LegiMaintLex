@@ -2,14 +2,30 @@ from __future__ import annotations
 
 import argparse
 import csv
+import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Iterable
 
+from rdflib import Graph, URIRef
 
-DEFAULT_INPUT_CSV = Path(
-    "exp/new_ontology/openai/ontology_extended_openai_from_kg.csv"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.kg_creation.update_ontology_from_populated_kg import (
+    PREDICATE_NAMESPACES,
+    bind_namespaces,
+    build_signature_counts,
+    collect_direct_triples,
+    collect_reified_triples,
 )
+
+DEFAULT_INPUT_CSV = Path("exp/new_ontology/openai/ontology_extended_openai_from_kg.csv")
+DEFAULT_FULL_KG_DIRS = [
+    Path("exp/kg/full/mistral"),
+    Path("exp/kg/full/openai"),
+]
 DEFAULT_OUTPUT_DIR = Path("exp/evaluation_results/kg_predicate_tail_class")
 
 CLASSES = [
@@ -21,7 +37,6 @@ CLASSES = [
     "Location",
     "Modality",
     "Reason",
-    "Reference",
     "Situation",
     "Source",
     "Time",
@@ -64,7 +79,9 @@ def infer_expected_tail_classes(
     predicate_text = str(predicate_local).strip().lower()
     if not predicate_text:
         return []
-    return [class_name for class_name in class_names if class_name.lower() in predicate_text]
+    return [
+        class_name for class_name in class_names if class_name.lower() in predicate_text
+    ]
 
 
 def read_csv_rows(path: Path) -> list[dict[str, str]]:
@@ -72,12 +89,72 @@ def read_csv_rows(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
-def write_csv_rows(path: Path, rows: list[dict[str, Any]], fieldnames: list[str]) -> None:
+def write_csv_rows(
+    path: Path, rows: list[dict[str, Any]], fieldnames: list[str]
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
+
+
+def signature_rows_from_kg(
+    kg_path: Path,
+    predicate_namespaces: Iterable[str],
+    min_support: int,
+    include_direct_triples: bool,
+    include_reified_statements: bool,
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    graph = Graph()
+    bind_namespaces(graph)
+    graph.parse(str(kg_path), format="turtle")
+
+    observed_triples: set[tuple[URIRef, URIRef, URIRef]] = set()
+    if include_reified_statements:
+        observed_triples.update(collect_reified_triples(graph, predicate_namespaces))
+    if include_direct_triples:
+        observed_triples.update(collect_direct_triples(graph, predicate_namespaces))
+
+    signature_counts, property_counts, skipped = build_signature_counts(
+        graph=graph,
+        observed_triples=observed_triples,
+    )
+
+    rows = []
+    for (predicate, domain, range_), support in sorted(
+        signature_counts.items(),
+        key=lambda item: (
+            local_name(item[0][0]),
+            local_name(item[0][1]),
+            local_name(item[0][2]),
+        ),
+    ):
+        if property_counts[predicate] < min_support or support < min_support:
+            continue
+        rows.append(
+            {
+                "source_kg": str(kg_path),
+                "predicate": str(predicate),
+                "predicate_local": local_name(predicate),
+                "domain": str(domain),
+                "domain_local": local_name(domain),
+                "range": str(range_),
+                "range_local": local_name(range_),
+                "signature_support_count": support,
+                "predicate_support_count": property_counts[predicate],
+            }
+        )
+
+    stats = {
+        "kg_triples_parsed": len(graph),
+        "observed_relation_triples": len(observed_triples),
+        "skipped_relation_triples_without_class": skipped,
+        "object_properties_seen": len(property_counts),
+        "signature_rows_before_support_filter": len(signature_counts),
+        "signature_rows_after_support_filter": len(rows),
+    }
+    return rows, stats
 
 
 def annotated_signature_rows(
@@ -116,9 +193,7 @@ def annotated_signature_rows(
             {
                 "predicate_local": predicate_local,
                 "range_local": range_local,
-                "expected_tail_classes_from_predicate": "|".join(
-                    expected_tail_classes
-                ),
+                "expected_tail_classes_from_predicate": "|".join(expected_tail_classes),
                 "has_tail_class_hint": str(has_tail_class_hint).lower(),
                 "tail_class_matches_hint": str(tail_class_matches_hint).lower(),
                 "evaluation_status": evaluation_status,
@@ -190,9 +265,7 @@ def predicate_review_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "predicate": predicate,
                 "predicate_local": predicate_local,
                 "predicate_status": predicate_status,
-                "expected_tail_classes_from_predicate": "|".join(
-                    expected_tail_classes
-                ),
+                "expected_tail_classes_from_predicate": "|".join(expected_tail_classes),
                 "matching_tail_classes": "|".join(matching_ranges),
                 "mismatching_tail_classes": "|".join(mismatching_ranges),
                 "no_hint_tail_classes": "|".join(no_hint_ranges),
@@ -299,22 +372,80 @@ def parse_args() -> argparse.Namespace:
             "mentions a class name but the tail/range class does not match it."
         )
     )
-    parser.add_argument("--input-csv", type=Path, default=DEFAULT_INPUT_CSV)
+    parser.add_argument(
+        "--input-csv",
+        type=Path,
+        default=None,
+        help=(
+            "Precomputed predicate/domain/range signature CSV. If no KG inputs are "
+            "provided, defaults to exp/new_ontology/openai/ontology_extended_openai_from_kg.csv."
+        ),
+    )
+    parser.add_argument(
+        "--kg",
+        type=Path,
+        action="append",
+        default=[],
+        help="KG Turtle file to process. Can be repeated.",
+    )
+    parser.add_argument(
+        "--kg-dir",
+        type=Path,
+        action="append",
+        default=[],
+        help="Directory containing KG Turtle files to process. Can be repeated.",
+    )
+    parser.add_argument(
+        "--kg-glob",
+        action="append",
+        default=[],
+        help="Glob pattern for KG Turtle files, for example 'exp/kg/full/openai/*.ttl'.",
+    )
+    parser.add_argument(
+        "--full-kg",
+        action="store_true",
+        help="Process all Turtle KGs in exp/kg/full/mistral and exp/kg/full/openai.",
+    )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument(
         "--output-prefix",
         default=None,
-        help="Defaults to '<input stem>_tail_class_filter'.",
+        help=(
+            "For CSV mode, defaults to '<input stem>_tail_class_filter'. "
+            "For single-KG mode, defaults to '<kg stem>_tail_class_filter'."
+        ),
+    )
+    parser.add_argument(
+        "--predicate-namespace",
+        action="append",
+        choices=sorted(PREDICATE_NAMESPACES),
+        default=None,
+        help="Predicate namespace to extract from KG inputs. Can be repeated. Default: semlegm.",
+    )
+    parser.add_argument(
+        "--min-support",
+        type=int,
+        default=1,
+        help="Minimum observed support needed to keep a KG-derived signature.",
+    )
+    parser.add_argument(
+        "--no-direct-triples",
+        action="store_true",
+        help="Do not read direct subject-predicate-object triples from KG inputs.",
+    )
+    parser.add_argument(
+        "--no-reified-statements",
+        action="store_true",
+        help="Do not read rdf:Statement/rdf:subject/rdf:predicate/rdf:object triples from KG inputs.",
     )
     return parser.parse_args()
 
 
-def main() -> None:
-    args = parse_args()
-    if not args.input_csv.exists():
-        raise FileNotFoundError(f"Input CSV not found: {args.input_csv}")
-
-    rows = read_csv_rows(args.input_csv)
+def write_tail_class_outputs(
+    rows: list[dict[str, Any]],
+    output_dir: Path,
+    prefix: str,
+) -> dict[str, Path]:
     annotated = annotated_signature_rows(rows, class_names=CLASSES)
     kept = [
         row
@@ -329,12 +460,11 @@ def main() -> None:
     review = predicate_review_rows(annotated)
     counts = count_rows(annotated_rows=annotated, review_rows=review)
 
-    prefix = args.output_prefix or f"{args.input_csv.stem}_tail_class_filter"
-    signatures_path = args.output_dir / f"{prefix}_signatures.csv"
-    kept_path = args.output_dir / f"{prefix}_kept_signatures.csv"
-    excluded_path = args.output_dir / f"{prefix}_excluded_signatures.csv"
-    review_path = args.output_dir / f"{prefix}_predicates_for_review.csv"
-    counts_path = args.output_dir / f"{prefix}_counts.csv"
+    signatures_path = output_dir / f"{prefix}_signatures.csv"
+    kept_path = output_dir / f"{prefix}_kept_signatures.csv"
+    excluded_path = output_dir / f"{prefix}_excluded_signatures.csv"
+    review_path = output_dir / f"{prefix}_predicates_for_review.csv"
+    counts_path = output_dir / f"{prefix}_counts.csv"
 
     signature_fieldnames = ordered_fieldnames(annotated)
     write_csv_rows(signatures_path, annotated, signature_fieldnames)
@@ -361,13 +491,106 @@ def main() -> None:
     )
     write_csv_rows(counts_path, counts, ["metric", "value"])
 
+    return {
+        "signatures": signatures_path,
+        "kept": kept_path,
+        "excluded": excluded_path,
+        "review": review_path,
+        "counts": counts_path,
+    }
+
+
+def resolve_kg_paths(args: argparse.Namespace) -> list[Path]:
+    paths = set(args.kg)
+
+    kg_dirs = list(args.kg_dir)
+    if args.full_kg:
+        kg_dirs.extend(DEFAULT_FULL_KG_DIRS)
+
+    for kg_dir in kg_dirs:
+        if not kg_dir.exists():
+            raise FileNotFoundError(f"KG directory not found: {kg_dir}")
+        paths.update(path for path in kg_dir.glob("*.ttl") if path.is_file())
+
+    for pattern in args.kg_glob:
+        paths.update(path for path in Path().glob(pattern) if path.is_file())
+
+    missing = [path for path in paths if not path.exists()]
+    if missing:
+        raise FileNotFoundError(
+            "KG file(s) not found: " + ", ".join(str(path) for path in sorted(missing))
+        )
+
+    return sorted(paths, key=lambda path: str(path))
+
+
+def main() -> None:
+    args = parse_args()
+    kg_paths = resolve_kg_paths(args)
+
+    if kg_paths:
+        selected_names = args.predicate_namespace or ["semlegm"]
+        predicate_namespaces = [PREDICATE_NAMESPACES[name] for name in selected_names]
+        all_counts = []
+
+        for kg_path in kg_paths:
+            rows, kg_stats = signature_rows_from_kg(
+                kg_path=kg_path,
+                predicate_namespaces=predicate_namespaces,
+                min_support=args.min_support,
+                include_direct_triples=not args.no_direct_triples,
+                include_reified_statements=not args.no_reified_statements,
+            )
+            prefix = args.output_prefix or f"{kg_path.stem}_tail_class_filter"
+            paths = write_tail_class_outputs(rows, args.output_dir, prefix)
+
+            for metric, value in kg_stats.items():
+                all_counts.append(
+                    {
+                        "source_kg": str(kg_path),
+                        "output_prefix": prefix,
+                        "metric": metric,
+                        "value": value,
+                    }
+                )
+
+            print(f"KG: {kg_path}")
+            for metric, value in kg_stats.items():
+                print(f"{metric}: {value}")
+            print(f"All annotated signatures: {paths['signatures']}")
+            print(f"Kept signatures: {paths['kept']}")
+            print(f"Excluded signatures: {paths['excluded']}")
+            print(f"Predicates for review: {paths['review']}")
+            print(f"Counts: {paths['counts']}")
+
+        if len(kg_paths) > 1:
+            batch_counts_path = (
+                args.output_dir / "kg_tail_class_filter_batch_counts.csv"
+            )
+            write_csv_rows(
+                batch_counts_path,
+                all_counts,
+                ["source_kg", "output_prefix", "metric", "value"],
+            )
+            print(f"Batch KG counts: {batch_counts_path}")
+        return
+
+    input_csv = args.input_csv or DEFAULT_INPUT_CSV
+    if not input_csv.exists():
+        raise FileNotFoundError(f"Input CSV not found: {input_csv}")
+
+    rows = read_csv_rows(input_csv)
+    prefix = args.output_prefix or f"{input_csv.stem}_tail_class_filter"
+    paths = write_tail_class_outputs(rows, args.output_dir, prefix)
+
+    counts = read_csv_rows(paths["counts"])
     for row in counts:
         print(f"{row['metric']}: {row['value']}")
-    print(f"All annotated signatures: {signatures_path}")
-    print(f"Kept signatures: {kept_path}")
-    print(f"Excluded signatures: {excluded_path}")
-    print(f"Predicates for review: {review_path}")
-    print(f"Counts: {counts_path}")
+    print(f"All annotated signatures: {paths['signatures']}")
+    print(f"Kept signatures: {paths['kept']}")
+    print(f"Excluded signatures: {paths['excluded']}")
+    print(f"Predicates for review: {paths['review']}")
+    print(f"Counts: {paths['counts']}")
 
 
 if __name__ == "__main__":
