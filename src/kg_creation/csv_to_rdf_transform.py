@@ -276,7 +276,9 @@ def collapse_combined_entity_labels(triplet_rows: list[dict[str, str]]) -> None:
             if not entity:
                 continue
             labels = labels_by_entity.setdefault(entity, {"pref": [], "alt": []})
-            pref_label = first(row.get(f"{role}_pref_label"), short_label(row.get(role)))
+            pref_label = first(
+                row.get(f"{role}_pref_label"), short_label(row.get(role))
+            )
             alt_label = first(row.get(role))
             if pref_label:
                 labels["pref"].append(pref_label)

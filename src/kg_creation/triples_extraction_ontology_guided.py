@@ -16,6 +16,7 @@ from prompts import (
     build_prompt_relations_extraction_fully_constrained_with_entities,
 )
 
+
 def get_async_client(provider: str):
     provider_normalized = provider.strip().lower()
 
