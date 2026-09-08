@@ -1,0 +1,5 @@
+SEMLEG Component;Action
+Specific domain classes (Action, Actor, Artifact, Condition, Definition, Source, Location, Reason, Situation, Time);Retained
+Relations whose domain and range correspond to the retained classes (hasDefinition, hasSubSource);Retained
+Structural rule model (Rule, hasSubject, hasObject, hasAct);Discarded
+Logical operators (Operator, Operand, hasLeftOperand, hasRightOperand);Discarded
