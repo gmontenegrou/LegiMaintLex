@@ -205,6 +205,9 @@ Extracted heads and tails are modeled as reusable entity resources. Each entity 
 
 Textual grounding is represented with the Web Annotation vocabulary. Each grounded head or tail mention is an `oa:Annotation` whose body is the entity resource and whose target points to the source article. The target contains an `oa:TextPositionSelector` with `oa:start` and `oa:end`, preserving the character offsets of the mention in the article text. The RDF generation process itself is represented as a `prov:Activity`, allowing generated annotations and statements to be connected to the dataset creation activity.
 
+![LegiMaintLex architecture](src/img/data_modelling.png)
+
+
 The transformation is controlled by RML-style mapping rules. The base mapping in `src/data/csv_to_rml_mapping.ttl` defines the CSV logical sources, URI templates, classes, datatypes, and predicate-object maps used to build the graph. Before graph creation, `src/preprocess/build_rml_extraction_rules_from_ontology.py` reads the provider-specific extended ontology and appends generated rules for every ontology class, object property, and domain/range signature. These rules record the correspondence between extracted labels and ontology IRIs through `map:ExtractionClassRule`, `map:ExtractionRelationRule`, and `map:ExtractionDomainRangeRule`. The pipeline then patches the generated mapping so that its logical sources point to the provider-specific RML CSV files and applies the mapping with either the built-in lightweight RML engine or PyRML.
 
 Run the full RDF transformation for Mistral:
