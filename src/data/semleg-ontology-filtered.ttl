@@ -1,0 +1,69 @@
+@prefix semleg: <https://w3id.org/semleg#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https://w3id.org/semleg> a owl:Ontology .
+
+semleg:Artifact a owl:Class ;
+    rdfs:label "Artifact"@en ;
+    rdfs:comment "Material or immaterial object (Thing) involved in an action."@en .
+
+semleg:Action a owl:Class ;
+    rdfs:label "Action"@en ;
+    rdfs:comment "The process of doing something."@en .
+
+semleg:Actor a owl:Class ;
+    rdfs:label "Actor"@en ;
+    rdfs:comment "Entity (Person or Organization) that has the capacity to act."@en .
+
+semleg:Condition a owl:Class ;
+    rdfs:label "Condition"@en ;
+    rdfs:comment "A constraint specifying properties that must be satisfied."@en .
+
+semleg:Situation a owl:Class ;
+    rdfs:label "Situation"@en ;
+    rdfs:comment "Description of something that has happened or may happen."@en .
+
+semleg:Time a owl:Class ;
+    rdfs:label "Time"@en ;
+    rdfs:comment "Moment, duration, or occurrence of an action."@en .
+
+semleg:Location a owl:Class ;
+    rdfs:label "Location"@en ;
+    rdfs:comment "A place where an action can be carried out."@en .
+
+semleg:Definition a owl:Class ;
+    rdfs:label "Definition"@en ;
+    rdfs:comment "Legal provision defining the meaning of concepts."@en .
+
+semleg:Source a owl:Class ;
+    rdfs:label "Source"@en ;
+    rdfs:comment "Textual mention of another legal source."@en .
+
+semleg:Reason a owl:Class ;
+    rdfs:label "Reason"@en ;
+    rdfs:comment "The justification of an action."@en .
+
+semleg:hasDefinition a owl:ObjectProperty ;
+    rdfs:label "hasDefinition"@en ;
+    rdfs:domain semleg:Source ;
+    rdfs:range semleg:Definition .
+
+semleg:hasSubSource a owl:ObjectProperty ;
+    rdfs:label "hasSubSource"@en ;
+    rdfs:domain semleg:Source ;
+    rdfs:range semleg:Source .
+
+semleg:hasCondition a owl:ObjectProperty ;
+    rdfs:label "hasCondition"@en ;
+    rdfs:domain semleg:Action ;
+    rdfs:domain semleg:Source ;
+    rdfs:range semleg:Condition .
+
+semleg:hasTime a owl:ObjectProperty ;
+    rdfs:label "hasTime"@en ;
+    rdfs:domain semleg:Action ;
+    rdfs:range semleg:Time .

@@ -1,0 +1,89 @@
+:Action a :Class ; :label "Action" ; :comment "The process of doing something." ; :subClassOf [a :Restriction ; :onProperty :appliesTo ; :allValuesFrom :Artifact] .
+:Actor a :Class ; :label "Actor" ; :comment "Entity (Person or Organization) that has the capacity to act." .
+:Artifact a :Class ; :label "Artifact" ; :comment "Material or immaterial object (Thing) involved in an action." ; :subClassOf [a :Restriction ; :onProperty :appliesTo ; :allValuesFrom (:Action OR :Artifact OR :Location)], [a :Restriction ; :onProperty :contains ; :allValuesFrom :Artifact], [a :Restriction ; :onProperty :transmittedTo ; :allValuesFrom :Actor] .
+:Condition a :Class ; :label "Condition" ; :comment "A constraint specifying properties that must be satisfied." ; :subClassOf [a :Restriction ; :onProperty :appliesTo ; :allValuesFrom :Action] .
+:Definition a :Class ; :label "Definition" ; :comment "Legal provision defining the meaning of concepts." .
+:Location a :Class ; :label "Location" ; :comment "A place where an action can be carried out." ; :subClassOf [a :Restriction ; :onProperty :contains ; :allValuesFrom :Location] .
+:Reason a :Class ; :label "Reason" ; :comment "The justification of an action." .
+:Situation a :Class ; :label "Situation" ; :comment "Description of something that has happened or may happen." ; :subClassOf [a :Restriction ; :onProperty :appliesTo ; :allValuesFrom :Artifact] .
+:Source a :Class ; :label "Source" ; :comment "Textual mention of another legal source." ; :subClassOf [a :Restriction ; :onProperty :appliesTo ; :allValuesFrom :Action] .
+:Time a :Class ; :label "Time" ; :comment "Moment, duration, or occurrence of an action." ; :subClassOf [a :Restriction ; :onProperty :transmittedTo ; :allValuesFrom :Artifact] .
+:accompanies a :ObjectProperty ; :comment "Relates an actor to another actor whom they accompany during an action." ; :domain :Actor ; :range :Actor .
+:affects a :ObjectProperty ; :comment "Relates a situation to another situation that it influences or impacts." ; :domain :Situation ; :range :Situation .
+:aimsTo a :ObjectProperty ; :comment "Relates an artifact to an action that it is intended to achieve or support." ; :domain :Artifact ; :range :Action .
+:aimsToAction a :ObjectProperty ; :comment "Relates an action to another action that it aims to achieve or enable." ; :domain :Action ; :range :Action .
+:aimsToSituation a :ObjectProperty ; :comment "Relates an action to a situation it aims to bring about or prevent." ; :domain :Action ; :range :Situation .
+:appliesTo a :ObjectProperty ; :comment "Indicates that an action is applicable to a specific artifact.", "Indicates the action to which a condition is applicable.", "Relates a legal source to the action(s) to which it is applicable.", "Relates a situation to the artifact to which it is relevant or applicable.", "Relates an artifact (such as a device or system) to a location where it is applicable or in use.", "Relates an artifact (such as a permit or authorization) to an action to which it applies or is required.", "Relates an artifact (such as an authorization) to another artifact (such as a component or part) to which it applies." ; :domain (:Action OR :Artifact OR :Condition OR :Situation OR :Source) ; :range (:Artifact OR :Action OR :Location) .
+:appliesToActor a :ObjectProperty ; :comment "Relates a legal source to the actor(s) to which it is applicable.", "Relates an action to the actor it is directed at or involves as a subject." ; :domain (:Action OR :Source) ; :range :Actor .
+:appliesToArtifact a :ObjectProperty ; :comment "Indicates the artifact to which a condition is applicable.", "Relates an action to the artifact it is intended to affect, inspect, or modify." ; :domain (:Action OR :Condition) ; :range :Artifact .
+:appliesToSituation a :ObjectProperty ; :comment "Relates an action to a situation it is intended to address, prevent, or resolve." ; :domain :Action ; :range :Situation .
+:canBeRecovered a :ObjectProperty ; :comment "Indicates that one artifact can be recovered or reused from another artifact." ; :domain :Artifact ; :range :Artifact .
+:canReplace a :ObjectProperty ; :comment "Indicates that one artifact can replace another artifact in a given context." ; :domain :Artifact ; :range :Artifact .
+:capableOfAnalyzing a :ObjectProperty ; :comment "Relates an artifact (such as a device) to another artifact (such as a substance or component) that it is capable of analyzing." ; :domain :Artifact ; :range :Artifact .
+:capturedAt a :ObjectProperty ; :comment "Relates an artifact (such as a substance) to the location where it is captured or collected." ; :domain :Artifact ; :range :Location .
+:communicates a :ObjectProperty ; :comment "Relates an actor to an artifact that they communicate or transmit." ; :domain :Actor ; :range :Artifact .
+:composedOf a :ObjectProperty ; :comment "Relates an artifact to other artifacts that are its components or parts." ; :domain :Artifact ; :range :Artifact .
+:confies a :ObjectProperty ; :comment "Relates an actor to an action that they entrust or delegate to another actor." ; :domain :Actor ; :range :Action .
+:connectedTo a :ObjectProperty ; :comment "Indicates that two artifacts are physically or functionally connected." ; :domain :Artifact ; :range :Artifact .
+:containedIn a :ObjectProperty ; :comment "Relates an artifact to another artifact in which it is contained or documented." ; :domain :Artifact ; :range :Artifact .
+:contains a :ObjectProperty ; :comment "Indicates that a location spatially includes another location.", "Relates an artifact to another artifact that it contains or holds." ; :domain (:Artifact OR :Location) ; :range (:Artifact OR :Location) .
+:definedBy a :ObjectProperty ; :comment "Relates an artifact to the actor that defines or specifies it." ; :domain :Artifact ; :range :Actor .
+:defines a :ObjectProperty ; :comment "Relates an actor to an artifact whose characteristics or procedures they define." ; :domain :Actor ; :range :Artifact .
+:deliveredBy a :ObjectProperty ; :comment "Indicates the actor responsible for delivering or issuing an artifact." ; :domain :Artifact ; :range :Actor .
+:delivers a :ObjectProperty ; :comment "Relates an action to the artifact that is produced or delivered as a result of performing the action.", "Relates an actor to an artifact that they deliver or provide." ; :domain (:Action OR :Actor) ; :range :Artifact .
+:designates a :ObjectProperty ; :comment "Relates an actor to another actor whom they designate for a specific responsibility." ; :domain :Actor ; :range :Actor .
+:doesNotApplyTo a :ObjectProperty ; :comment "Indicates that a given action is not applicable to a specific artifact." ; :domain :Action ; :range :Artifact .
+:doesNotApplyToSituation a :ObjectProperty ; :comment "Indicates that a given action is not applicable in a specific situation." ; :domain :Action ; :range :Situation .
+:equippedWith a :ObjectProperty ; :comment "Indicates that a situation involves or requires the presence of a specific artifact.", "Indicates that an artifact is equipped with another artifact, such as safety instructions or devices." ; :domain (:Artifact OR :Situation) ; :range :Artifact .
+:establishedBy a :ObjectProperty ; :comment "Relates an artifact to the actor who establishes or creates it." ; :domain :Artifact ; :range :Actor .
+:hasCondition a :ObjectProperty ; :label "hasCondition" ; :domain (:Action OR :Source) ; :range :Condition .
+:hasDefinition a :ObjectProperty ; :label "hasDefinition" ; :domain :Source ; :range :Definition .
+:hasDuration a :ObjectProperty ; :comment "Relates a situation to the duration of time over which it occurs." ; :domain :Situation ; :range :Time .
+:hasLocation a :ObjectProperty ; :comment "Relates an actor to the location where it operates or performs its activities." ; :domain :Actor ; :range :Location .
+:hasPurpose a :ObjectProperty ; :comment "Relates an action to another action that represents its intended purpose or goal." ; :domain :Action ; :range :Action .
+:hasPurposeArtifact a :ObjectProperty ; :comment "Relates an action to an artifact that is the focus or beneficiary of its purpose." ; :domain :Action ; :range :Artifact .
+:hasPurposeSituation a :ObjectProperty ; :comment "Relates an action to a situation that represents its intended purpose or outcome." ; :domain :Action ; :range :Situation .
+:hasRecipient a :ObjectProperty ; :comment "Relates an action to the actor who is the recipient or beneficiary of the action." ; :domain :Action ; :range :Actor .
+:hasSituation a :ObjectProperty ; :comment "Relates a condition to a situation in which it is relevant or triggered." ; :domain :Condition ; :range :Situation .
+:hasSource a :ObjectProperty ; :comment "Relates a condition to its legal or documentary source.", "Relates an action to the legal or documentary source that prescribes or informs it." ; :domain (:Action OR :Condition) ; :range :Source .
+:hasSubSource a :ObjectProperty ; :label "hasSubSource" ; :domain :Source ; :range :Source .
+:hasTime a :ObjectProperty ; :label "hasTime" ; :domain :Action ; :range :Time .
+:implements a :ObjectProperty ; :comment "Indicates that an actor puts into effect or applies an artifact, such as a standard or procedure." ; :domain :Actor ; :range :Artifact .
+:includesAction a :ObjectProperty ; :comment "Indicates that a condition includes or specifies an action.", "Indicates that a situation encompasses or involves a specific action.", "Relates an action to another action that is considered a component or sub-action of it.", "Relates an artifact to an action that it encompasses or specifies as part of its operational scope." ; :domain (:Action OR :Artifact OR :Condition OR :Situation) ; :range :Action .
+:includesActor a :ObjectProperty ; :comment "Indicates that an actor includes another actor as a part or sub-entity.", "Relates a situation to the actor(s) involved or affected by it." ; :domain (:Actor OR :Situation) ; :range :Actor .
+:includesArtifact a :ObjectProperty ; :comment "Relates a situation to the artifact(s) involved or present in it.", "Relates an action to an artifact that is involved or included in the execution of the action.", "Relates an artifact to another artifact that it contains, references, or is composed of." ; :domain (:Action OR :Artifact OR :Situation) ; :range :Artifact .
+:includesSituation a :ObjectProperty ; :comment "Relates a situation to another situation that it encompasses or contains.", "Relates an action to a situation that is encompassed or affected by the action.", "Relates an artifact to a situation it documents, records, or is associated with." ; :domain (:Action OR :Artifact OR :Situation) ; :range :Situation .
+:inCollaborationWith a :ObjectProperty ; :comment "Indicates that an artifact is developed or managed in collaboration with a specific actor." ; :domain :Artifact ; :range :Actor .
+:informs a :ObjectProperty ; :comment "Indicates that one actor provides information to another actor." ; :domain :Actor ; :range :Actor .
+:isPartOf a :ObjectProperty ; :comment "Indicates that an action is recorded or included as part of an artifact, such as a document or dossier.", "Indicates that one artifact is a component or subset of another artifact." ; :domain (:Action OR :Artifact) ; :range :Artifact .
+:locatedAt a :ObjectProperty ; :comment "Relates an artifact to the location where it is found, stored, or must be present." ; :domain :Artifact ; :range :Location .
+:madeAvailableTo a :ObjectProperty ; :comment "Indicates that an artifact is made accessible or provided to a specific actor.", "Relates an actor who makes resources or information available to another actor." ; :domain (:Actor OR :Artifact) ; :range :Actor .
+:mustBeAccessibleFor a :ObjectProperty ; :comment "Indicates that an artifact must be accessible to enable or facilitate a specific action." ; :domain :Artifact ; :range :Action .
+:mustComplyWith a :ObjectProperty ; :comment "Indicates that an actor is required to satisfy a specific condition.", "Indicates that an artifact is required to satisfy or adhere to a specified condition." ; :domain (:Actor OR :Artifact) ; :range :Condition .
+:mustComplyWithSource a :ObjectProperty ; :comment "Indicates that an artifact must comply with a specific legal source or reference." ; :domain :Artifact ; :range :Source .
+:mustHold a :ObjectProperty ; :comment "Indicates that an actor is required to possess a specific artifact (e.g., authorization, document)." ; :domain :Actor ; :range :Artifact .
+:mustKnow a :ObjectProperty ; :comment "Indicates that an actor is required to have knowledge of a specific artifact." ; :domain :Actor ; :range :Artifact .
+:mustNotBeUsedWith a :ObjectProperty ; :comment "Indicates that one artifact is prohibited from being used in conjunction with another artifact." ; :domain :Artifact ; :range :Artifact .
+:mustNotInfluence a :ObjectProperty ; :comment "Relates an action to another action that it must not influence or affect, typically as a regulatory constraint." ; :domain :Action ; :range :Action .
+:mustUndergo a :ObjectProperty ; :comment "Indicates that an artifact is required to be subjected to a specific action or process." ; :domain :Artifact ; :range :Action .
+:notEquivalentTo a :ObjectProperty ; :comment "Indicates that one action is not considered equivalent to another action in a regulatory context." ; :domain :Action ; :range :Action .
+:participatesIn a :ObjectProperty ; :comment "Relates an actor to an action in which they participate." ; :domain :Actor ; :range :Action .
+:participatesInSituation a :ObjectProperty ; :comment "Relates an actor to a situation in which they are involved." ; :domain :Actor ; :range :Situation .
+:performedAtLocation a :ObjectProperty ; :comment "Relates an action to the location where it is or must be performed." ; :domain :Action ; :range :Location .
+:performedIn a :ObjectProperty ; :comment "Relates an action to the location where it is performed." ; :domain :Action ; :range :Location .
+:performs a :ObjectProperty ; :comment "Indicates that an actor carries out a specific action." ; :domain :Actor ; :range :Action .
+:precededBy a :ObjectProperty ; :comment "Indicates that an action must be preceded by another action as a regulatory or procedural requirement." ; :domain :Action ; :range :Action .
+:providedBy a :ObjectProperty ; :comment "Relates a justification or reason to the actor who provides it." ; :domain :Reason ; :range :Actor .
+:provides a :ObjectProperty ; :comment "Indicates that an actor supplies or makes available an artifact." ; :domain :Actor ; :range :Artifact .
+:responsibleFor a :ObjectProperty ; :comment "Relates an actor to a condition for which they are responsible to ensure compliance.", "Relates an actor to an action for which they have responsibility.", "Relates an actor to an artifact for which they have responsibility in the context of regulatory maintenance." ; :domain :Actor ; :range (:Action OR :Artifact OR :Condition) .
+:resultOf a :ObjectProperty ; :comment "Relates an artifact to the action that produces or generates it." ; :domain :Artifact ; :range :Action .
+:resultsMadeAvailableTo a :ObjectProperty ; :comment "Indicates that the results of an action are made available to a specific actor." ; :domain :Action ; :range :Actor .
+:transmits a :ObjectProperty ; :comment "Indicates that an actor transmits or communicates a temporal element (such as a date) to another party.", "Indicates that an actor transmits or communicates an action (such as an analysis or report) to another party.", "Indicates that an actor transmits or communicates an artifact (such as information or documents) to another party." ; :domain :Actor ; :range (:Action OR :Artifact OR :Time) .
+:transmittedTo a :ObjectProperty ; :comment "Indicates that a temporal event or document is transmitted to a specific artifact (e.g., a digital service or system).", "Indicates the actor to whom an artifact is transmitted or delivered." ; :domain (:Artifact OR :Time) ; :range (:Actor OR :Artifact) .
+:triggeredBy a :ObjectProperty ; :comment "Relates an action to the situation that triggers its execution." ; :domain :Action ; :range :Situation .
+:triggers a :ObjectProperty ; :comment "Indicates that an artifact triggers or necessitates an action.", "Indicates that the occurrence of a situation initiates or causes an action to be performed." ; :domain (:Artifact OR :Situation) ; :range :Action .
+:triggersArtifact a :ObjectProperty ; :comment "Indicates that the occurrence of a situation activates or necessitates the use of an artifact." ; :domain :Situation ; :range :Artifact .
+:usedFor a :ObjectProperty ; :comment "Relates an artifact to the action for which it is used." ; :domain :Artifact ; :range :Action .
+:usedForSituation a :ObjectProperty ; :comment "Relates an artifact to the situation it is intended to address or mitigate." ; :domain :Artifact ; :range :Situation .
+:uses a :ObjectProperty ; :comment "Relates an actor to an artifact that is used in the performance of an action." ; :domain :Actor ; :range :Artifact .
+:verifies a :ObjectProperty ; :comment "Relates an action to the condition it is intended to verify.", "Relates an actor to a condition that they are responsible for verifying or ensuring." ; :domain (:Action OR :Actor) ; :range :Condition .

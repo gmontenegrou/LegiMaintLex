@@ -1,0 +1,59 @@
+:Action a :Class ; :label "Action" ; :comment "The process of doing something." .
+:Actor a :Class ; :label "Actor" ; :comment "Entity (Person or Organization) that has the capacity to act." .
+:Artifact a :Class ; :label "Artifact" ; :comment "Material or immaterial object (Thing) involved in an action." .
+:Condition a :Class ; :label "Condition" ; :comment "A constraint specifying properties that must be satisfied." .
+:Definition a :Class ; :label "Definition" ; :comment "Legal provision defining the meaning of concepts." .
+:Location a :Class ; :label "Location" ; :comment "A place where an action can be carried out." .
+:Modality a :Class .
+:Reason a :Class ; :label "Reason" ; :comment "The justification of an action." .
+:Situation a :Class ; :label "Situation" ; :comment "Description of something that has happened or may happen." .
+:Source a :Class ; :label "Source" ; :comment "Textual mention of another legal source." .
+:Time a :Class ; :label "Time" ; :comment "Moment, duration, or occurrence of an action." .
+:appliesTo a :ObjectProperty ; :comment "Relates a condition to the action it governs or constrains.", "Relates a condition to the artifact to which it applies.", "Relates a legal source to the artifact it governs or regulates.", "Relates an action to the artifact that is the target or subject of the action.", "Relates an action to the legal or regulatory definition it applies to or is governed by.", "Relates an actor to another actor over which it has authority or jurisdiction." ; :domain :Action, :Actor, :Condition, :Source ; :range :Action, :Actor, :Artifact, :Definition .
+:appliesToArtifact a :ObjectProperty ; :comment "Relates a modality to the artifact it governs or applies to." ; :domain :Modality ; :range :Artifact .
+:associatedWithModality a :ObjectProperty ; :comment "Relates an action to the legal modality (e.g., obligation, permission) that governs it." ; :domain :Action ; :range :Source .
+:compliesWith a :ObjectProperty ; :comment "Relates an artifact to another artifact or standard it must comply with." ; :domain :Artifact ; :range :Artifact .
+:composedOf a :ObjectProperty ; :comment "Relates an artifact to its constituent parts or components." ; :domain :Artifact ; :range :Artifact .
+:contains a :ObjectProperty ; :comment "Relates an artifact to an action that it contains or encompasses." ; :domain :Artifact ; :range :Action .
+:definedBy a :ObjectProperty ; :comment "Relates an action to the legal definition that specifies its meaning.", "Relates an action to the legal source that defines or specifies its meaning or requirements." ; :domain :Action ; :range :Definition, :Source .
+:defines a :ObjectProperty ; :comment "Relates an artifact to a condition that it defines or specifies." ; :domain :Artifact ; :range :Condition .
+:delivers a :ObjectProperty ; :comment "Relates an actor to an artifact that it provides or makes available." ; :domain :Actor ; :range :Artifact .
+:deliversTo a :ObjectProperty ; :comment "Relates an action to the artifact that is the output or recipient of the action's result." ; :domain :Action ; :range :Artifact .
+:ensuresComplianceWith a :ObjectProperty ; :comment "Relates an action to the condition that it ensures or must comply with." ; :domain :Action ; :range :Condition .
+:governedByModality a :ObjectProperty ; :comment "Relates an action to the modality (e.g., obligation, permission, prohibition) that governs it." ; :domain :Action ; :range :Modality .
+:governsArtifact a :ObjectProperty ; :comment "Relates a condition to the artifact it regulates or constrains." ; :domain :Condition ; :range :Artifact .
+:hasCondition a :ObjectProperty ; :label "hasCondition" ; :domain :Action, :Source ; :range :Condition .
+:hasDefinition a :ObjectProperty ; :label "hasDefinition" ; :domain :Source ; :range :Definition .
+:hasLocation a :ObjectProperty ; :comment "Relates a condition to the location where it applies.", "Relates an action to the specific location where it is performed or applicable." ; :domain :Action, :Condition ; :range :Location .
+:hasModality a :ObjectProperty ; :comment "Relates an action to the modality (e.g., obligation, permission) under which it is performed." ; :domain :Action ; :range :Condition, :Modality .
+:hasReason a :ObjectProperty ; :comment "Relates a condition to the reason or purpose justifying its imposition.", "Relates an action to the justification or purpose for which it is performed." ; :domain :Action, :Condition ; :range :Reason .
+:hasRecipient a :ObjectProperty ; :comment "Relates an action to the actor who is the recipient or beneficiary of the action's outcome." ; :domain :Action ; :range :Actor .
+:hasRole a :ObjectProperty ; :comment "Relates an actor to the role they play in a specific action." ; :domain :Actor ; :range :Action .
+:hasSource a :ObjectProperty ; :comment "Relates an action to the legal source that authorizes, defines, or justifies it." ; :domain :Action ; :range :Source .
+:hasSubSource a :ObjectProperty ; :label "hasSubSource" ; :domain :Source ; :range :Source .
+:hasTime a :ObjectProperty ; :label "hasTime" ; :domain :Action ; :range :Time .
+:includesAction a :ObjectProperty ; :comment "Relates a composite action to its constituent sub-actions.", "Relates a situation to the actions that are part of or required by it.", "Relates a source to the actions it prescribes or includes as part of its provisions.", "Relates an artifact to the actions that are required or associated with it." ; :domain :Action, :Artifact, :Situation, :Source ; :range :Action .
+:includesSituation a :ObjectProperty ; :comment "Relates an action to a situation that describes its context or outcome." ; :domain :Action ; :range :Situation .
+:involvesActor a :ObjectProperty ; :comment "Relates an action to the actor involved in its execution, specifying the role played." ; :domain :Action ; :range :Actor .
+:involvesArtifact a :ObjectProperty ; :comment "Relates an action to the artifact that is the subject or object of the action." ; :domain :Action ; :range :Artifact .
+:justifiedBy a :ObjectProperty ; :comment "Relates an action to the legal source that justifies or defines its requirements.", "Relates an action to the reason or justification for its execution." ; :domain :Action ; :range :Reason, :Source .
+:locatedAt a :ObjectProperty ; :comment "Relates a source to the location where it can be accessed or is applicable." ; :domain :Source ; :range :Location .
+:modalityAppliesDuring a :ObjectProperty ; :comment "Relates a modality to the temporal conditions under which it applies." ; :domain :Modality ; :range :Time .
+:mustComplyWith a :ObjectProperty ; :comment "Relates an actor to a condition that it is required to satisfy." ; :domain :Actor ; :range :Condition .
+:mustNotExceed a :ObjectProperty ; :comment "Relates a time constraint to the action that must not exceed the specified duration." ; :domain :Time ; :range :Action .
+:mustUndergo a :ObjectProperty ; :comment "Relates an actor to an action that it is required to perform or experience." ; :domain :Actor ; :range :Action .
+:performedAt a :ObjectProperty ; :comment "Relates an action to the location where it is carried out or must be performed." ; :domain :Action ; :range :Location .
+:performedAtLocation a :ObjectProperty ; :comment "Relates an action to the location where it is carried out." ; :domain :Action ; :range :Location .
+:performedBy a :ObjectProperty ; :comment "Relates an action to the actor who performs or is responsible for carrying it out." ; :domain :Action ; :range :Actor .
+:performedUnderCondition a :ObjectProperty ; :comment "Relates an action to the conditions under which it must be performed." ; :domain :Action ; :range :Condition .
+:performs a :ObjectProperty ; :comment "Relates an actor to an action that it carries out." ; :domain :Actor ; :range :Action .
+:playedBy a :ObjectProperty ; :comment "Relates an action to the actor that plays a specific role in its execution or oversight." ; :domain :Action ; :range :Actor .
+:preconisedIn a :ObjectProperty ; :comment "Relates an action to the artifact (e.g., report, document) in which it is recommended or prescribed." ; :domain :Action ; :range :Artifact .
+:requiresArtifact a :ObjectProperty ; :comment "Relates an action to the artifact that is necessary for its execution." ; :domain :Action ; :range :Artifact .
+:responsibleFor a :ObjectProperty ; :comment "Relates an actor to an action or artifact for which they are responsible." ; :domain :Actor ; :range :Action .
+:takesFormOf a :ObjectProperty ; :comment "Relates an action to another action that represents its specific form or implementation." ; :domain :Action ; :range :Action .
+:triggeredBy a :ObjectProperty ; :comment "Relates an action to the situation that necessitates or initiates its execution." ; :domain :Action ; :range :Situation .
+:triggers a :ObjectProperty ; :comment "Relates a situation to an action that is initiated as a consequence of that situation.", "Relates an action to another action that it initiates or causes to occur.", "Relates an artifact to the action it initiates or activates under specific conditions." ; :domain :Action, :Artifact, :Situation ; :range :Action .
+:triggersSituation a :ObjectProperty ; :comment "Relates an action to a situation that it may cause or necessitate." ; :domain :Action ; :range :Situation .
+:verifiedBy a :ObjectProperty ; :comment "Relates a condition to the artifact (e.g., report, certificate) that verifies its compliance." ; :domain :Condition ; :range :Artifact .
+:verifies a :ObjectProperty ; :comment "Relates an action to a condition that it checks or validates." ; :domain :Action ; :range :Condition .

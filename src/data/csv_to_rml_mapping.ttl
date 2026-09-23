@@ -1,0 +1,472 @@
+@prefix rr: <http://www.w3.org/ns/r2rml#> .
+@prefix rml: <http://semweb.mmlab.be/ns/rml#> .
+@prefix ql: <http://semweb.mmlab.be/ns/ql#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix eli: <http://data.europa.eu/eli/ontology#> .
+@prefix cnt: <http://www.w3.org/2011/content#> .
+@prefix oa: <http://www.w3.org/ns/oa#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix schema: <https://schema.org/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix semleg: <https://w3id.org/semleg#> .
+@prefix inst: <https://w3id.org/semleg/legimaintlex/resource/> .
+@prefix map: <https://w3id.org/semleg/mapping/> .
+
+map:RawLegalDocumentSource
+    rml:source "src/data/maintreg_database_clean.csv" ;
+    rml:referenceFormulation ql:CSV .
+
+map:NormalizedTripletSource
+    rml:source "src/output/rml/legal_triplets_normalized.csv" ;
+    rml:referenceFormulation ql:CSV .
+
+map:NormalizedMentionSource
+    rml:source "src/output/rml/legal_triplet_mentions.csv" ;
+    rml:referenceFormulation ql:CSV .
+
+map:LegalDocumentTriplesMap
+    a rr:TriplesMap ;
+    rml:logicalSource map:RawLegalDocumentSource ;
+    rr:subjectMap [
+        rr:template "https://w3id.org/semleg/legimaintlex/resource/document/{id}" ;
+        rr:class eli:LegalResource
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate dcterms:title ;
+        rr:objectMap [
+            rml:reference "title" ;
+            rr:datatype xsd:string
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate dcterms:type ;
+        rr:objectMap [
+            rml:reference "type" ;
+            rr:datatype xsd:string
+        ]
+    ] .
+
+map:ArticleTriplesMap
+    a rr:TriplesMap ;
+    rml:logicalSource map:RawLegalDocumentSource ;
+    rr:subjectMap [
+        rr:template "https://w3id.org/semleg/legimaintlex/resource/document/{id}/article/{num}" ;
+        rr:class eli:LegalResourceSubdivision
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate eli:id_local ;
+        rr:objectMap [
+            rml:reference "id" ;
+            rr:datatype xsd:string
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate eli:number ;
+        rr:objectMap [
+            rml:reference "num" ;
+            rr:datatype xsd:string
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate oa:sourceDateStart ;
+        rr:objectMap [
+            rml:reference "date" ;
+            rr:datatype xsd:date
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate eli:is_part_of ;
+        rr:objectMap [
+            rr:template "https://w3id.org/semleg/legimaintlex/resource/document/{id}" ;
+            rr:termType rr:IRI
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate dcterms:subject ;
+        rr:objectMap [
+            rml:reference "domain" ;
+            rr:datatype xsd:string
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate semleg:hasContent ;
+        rr:objectMap [
+            rr:template "https://w3id.org/semleg/legimaintlex/resource/document/{id}/article/{num}/content" ;
+            rr:termType rr:IRI
+        ]
+    ] .
+
+map:ContentAsTextTriplesMap
+    a rr:TriplesMap ;
+    rml:logicalSource map:RawLegalDocumentSource ;
+    rr:subjectMap [
+        rr:template "https://w3id.org/semleg/legimaintlex/resource/document/{id}/article/{num}/content" ;
+        rr:class cnt:ContentAsText
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate cnt:chars ;
+        rr:objectMap [
+            rml:reference "content" ;
+            rr:datatype xsd:string
+        ]
+    ] .
+
+map:HeadEntityTriplesMap
+    a rr:TriplesMap ;
+    rml:logicalSource map:NormalizedTripletSource ;
+    rr:subjectMap [
+        rml:reference "head_uri" ;
+        rr:termType rr:IRI ;
+        rr:class prov:Entity ;
+        rr:class skos:Concept
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate skos:prefLabel ;
+        rr:objectMap [
+            rml:reference "head_pref_label" ;
+            rr:datatype xsd:string
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate skos:altLabel ;
+        rr:objectMap [
+            rml:reference "head" ;
+            rr:datatype xsd:string
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate rdf:type ;
+        rr:objectMap [
+            rml:reference "head_type_iri" ;
+            rr:termType rr:IRI
+        ]
+    ].
+
+map:TailEntityTriplesMap
+    a rr:TriplesMap ;
+    rml:logicalSource map:NormalizedTripletSource ;
+    rr:subjectMap [
+        rml:reference "tail_uri" ;
+        rr:termType rr:IRI ;
+        rr:class prov:Entity ;
+        rr:class skos:Concept
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate skos:prefLabel ;
+        rr:objectMap [
+            rml:reference "tail_pref_label" ;
+            rr:datatype xsd:string
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate skos:altLabel ;
+        rr:objectMap [
+            rml:reference "tail" ;
+            rr:datatype xsd:string
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate rdf:type ;
+        rr:objectMap [
+            rml:reference "tail_type_iri" ;
+            rr:termType rr:IRI
+        ]
+    ] .
+
+map:ExtractedRelationStatementTriplesMap
+    a rr:TriplesMap ;
+    rml:logicalSource map:NormalizedTripletSource ;
+    rr:subjectMap [
+        rml:reference "triple_uri" ;
+        rr:termType rr:IRI ;
+        rr:class rdf:Statement ;
+        rr:class semleg:ExtractedRelation ;
+        rr:class prov:Entity
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate rdf:subject ;
+        rr:objectMap [
+            rml:reference "head_uri" ;
+            rr:termType rr:IRI
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate rdf:predicate ;
+        rr:objectMap [
+            rml:reference "relation_iri" ;
+            rr:termType rr:IRI
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate rdf:object ;
+        rr:objectMap [
+            rml:reference "tail_uri" ;
+            rr:termType rr:IRI
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate prov:hadPrimarySource ;
+        rr:objectMap [
+            rml:reference "article_uri" ;
+            rr:termType rr:IRI
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate prov:wasGeneratedBy ;
+        rr:objectMap [
+            rr:constant inst:relationExtractionRun ;
+            rr:termType rr:IRI
+        ]
+    ] .
+
+map:MentionAnnotationTriplesMap
+    a rr:TriplesMap ;
+    rml:logicalSource map:NormalizedMentionSource ;
+    rr:subjectMap [
+        rml:reference "mention_uri" ;
+        rr:termType rr:IRI ;
+        rr:class oa:Annotation
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate oa:hasBody ;
+        rr:objectMap [
+            rml:reference "entity_uri" ;
+            rr:termType rr:IRI
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate oa:hasTarget ;
+        rr:objectMap [
+            rr:template "target-{source_row_id}-{triplet_index}-{mention_role}" ;
+            rr:termType rr:BlankNode
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate prov:wasGeneratedBy ;
+        rr:objectMap [
+            rr:constant inst:mentionExtractionActivity ;
+            rr:termType rr:IRI
+        ]
+    ] .
+
+map:MentionAnnotationTargetTriplesMap
+    a rr:TriplesMap ;
+    rml:logicalSource map:NormalizedMentionSource ;
+    rr:subjectMap [
+        rr:template "target-{source_row_id}-{triplet_index}-{mention_role}" ;
+        rr:termType rr:BlankNode
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate oa:hasSource ;
+        rr:objectMap [
+            rml:reference "article_uri" ;
+            rr:termType rr:IRI
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate oa:hasSelector ;
+        rr:objectMap [
+            rr:template "selector-{source_row_id}-{triplet_index}-{mention_role}" ;
+            rr:termType rr:BlankNode
+        ]
+    ] .
+
+map:MentionTextPositionSelectorTriplesMap
+    a rr:TriplesMap ;
+    rml:logicalSource map:NormalizedMentionSource ;
+    rr:subjectMap [
+        rr:template "selector-{source_row_id}-{triplet_index}-{mention_role}" ;
+        rr:termType rr:BlankNode ;
+        rr:class oa:TextPositionSelector
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate oa:start ;
+        rr:objectMap [
+            rml:reference "mention_start" ;
+            rr:datatype xsd:integer
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate oa:end ;
+        rr:objectMap [
+            rml:reference "mention_end" ;
+            rr:datatype xsd:integer
+        ]
+    ] .
+
+map:KgCreationActivityTriplesMap
+    a rr:TriplesMap ;
+    rml:logicalSource map:NormalizedTripletSource ;
+    rr:subjectMap [
+        rr:constant inst:kgCreationActivity ;
+        rr:class prov:Activity
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate rdfs:label ;
+        rr:objectMap [
+            rr:constant "Knowledge graph creation" ;
+            rr:datatype xsd:string
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate prov:used ;
+        rr:objectMap [
+            rr:constant inst:dataset ;
+            rr:termType rr:IRI
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate prov:used ;
+        rr:objectMap [
+            rr:constant inst:generator ;
+            rr:termType rr:IRI
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate prov:wasInformedBy ;
+        rr:objectMap [
+            rr:constant inst:relationExtractionRun ;
+            rr:termType rr:IRI
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate prov:wasInformedBy ;
+        rr:objectMap [
+            rr:constant inst:mentionExtractionActivity ;
+            rr:termType rr:IRI
+        ]
+    ] .
+
+map:RelationExtractionActivityTriplesMap
+    a rr:TriplesMap ;
+    rml:logicalSource map:NormalizedTripletSource ;
+    rr:subjectMap [
+        rr:constant inst:relationExtractionRun ;
+        rr:termType rr:IRI ;
+        rr:class prov:Activity ;
+        rr:class semleg:LLMRelationExtraction
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate rdfs:label ;
+        rr:objectMap [
+            rr:constant "Signature-driven relation extraction" ;
+            rr:datatype xsd:string
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate prov:wasAssociatedWith ;
+        rr:objectMap [
+            rr:constant inst:extractionProvider ;
+            rr:termType rr:IRI
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate semleg:usesModel ;
+        rr:objectMap [
+            rr:constant "unspecified-model" ;
+            rr:datatype xsd:string
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate semleg:extractionStrategy ;
+        rr:objectMap [
+            rr:constant "signature-driven" ;
+            rr:datatype xsd:string
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate semleg:constrainedBy ;
+        rr:objectMap [
+            rr:constant inst:extendedOntology ;
+            rr:termType rr:IRI
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate prov:used ;
+        rr:objectMap [
+            rml:reference "article_uri" ;
+            rr:termType rr:IRI
+        ]
+    ] .
+
+map:MentionExtractionActivityTriplesMap
+    a rr:TriplesMap ;
+    rml:logicalSource map:NormalizedMentionSource ;
+    rr:subjectMap [
+        rr:constant inst:mentionExtractionActivity ;
+        rr:termType rr:IRI ;
+        rr:class prov:Activity ;
+        rr:class semleg:MentionExtraction
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate rdfs:label ;
+        rr:objectMap [
+            rr:constant "Mention annotation generation" ;
+            rr:datatype xsd:string
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate prov:wasInformedBy ;
+        rr:objectMap [
+            rr:constant inst:relationExtractionRun ;
+            rr:termType rr:IRI
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate prov:wasAssociatedWith ;
+        rr:objectMap [
+            rr:constant inst:generator ;
+            rr:termType rr:IRI
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate prov:used ;
+        rr:objectMap [
+            rml:reference "article_uri" ;
+            rr:termType rr:IRI
+        ]
+    ] .
+
+map:ExtractionProviderAgentTriplesMap
+    a rr:TriplesMap ;
+    rml:logicalSource map:NormalizedTripletSource ;
+    rr:subjectMap [
+        rr:constant inst:extractionProvider ;
+        rr:termType rr:IRI ;
+        rr:class prov:Agent ;
+        rr:class schema:Organization
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate rdfs:label ;
+        rr:objectMap [
+            rr:constant "Extraction provider" ;
+            rr:datatype xsd:string
+        ]
+    ] .
+
+map:ExtendedOntologyEntityTriplesMap
+    a rr:TriplesMap ;
+    rml:logicalSource map:NormalizedTripletSource ;
+    rr:subjectMap [
+        rr:constant inst:extendedOntology ;
+        rr:termType rr:IRI ;
+        rr:class prov:Entity ;
+        rr:class semleg:ExtractionConstraint
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate rdfs:label ;
+        rr:objectMap [
+            rr:constant "Extended extraction ontology" ;
+            rr:datatype xsd:string
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate dcterms:source ;
+        rr:objectMap [
+            rr:constant "unspecified-ontology" ;
+            rr:datatype xsd:string
+        ]
+    ] .
