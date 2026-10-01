@@ -319,7 +319,7 @@ def write_outputs(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     paths = {
-        "articles": output_dir / "portes_uri.csv",
+        "articles": output_dir / f"{prefix}_uri.csv",
         "triples": output_dir / f"{prefix}_triples.csv",
         "content": output_dir / f"{prefix}_articles_content.csv",
         "entities_by_article": output_dir / f"{prefix}_entities_by_article.csv",
