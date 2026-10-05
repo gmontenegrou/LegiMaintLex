@@ -49,11 +49,7 @@ def set_max_csv_field_size() -> None:
 
 
 def default_mapping(provider: str) -> Path:
-    return (
-        Path("exp/kg")
-        / provider
-        / f"csv_to_rml_mapping_{provider}_rules.ttl"
-    )
+    return Path("exp/kg") / provider / f"csv_to_rml_mapping_{provider}_rules.ttl"
 
 
 def default_output(provider: str, mapping: Path, output_format: str) -> Path:

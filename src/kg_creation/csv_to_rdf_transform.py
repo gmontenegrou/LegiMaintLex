@@ -39,6 +39,8 @@ DEFAULT_MERGE_BATCH_SIZE = 128
 DEFAULT_ENTITY_SIMILARITY_THRESHOLD = 0.7
 DEFAULT_RELATION_SIMILARITY_THRESHOLD = 0.7
 DEFAULT_RELATION_CANONICAL_STRATEGY = "ontology-aware"
+DEFAULT_FILTER_STRATEGY = "article"
+DEFAULT_TOPIC_FILTER = "all"
 PIPELINE_STAGES = (
     "build-rules",
     "merge",
@@ -688,9 +690,19 @@ def apply_start_at(args: argparse.Namespace) -> None:
         args.skip_prepare_rml_sources = True
 
 
-def create_document_rml_source(input_corpus: Path, output_csv: Path) -> int:
+def create_document_rml_source(
+    input_corpus: Path,
+    output_csv: Path,
+    included_source_row_ids: set[int] | None = None,
+) -> int:
     rows = read_csv(input_corpus)
+    filtered_rows = []
     for source_row_id, row in enumerate(rows):
+        if (
+            included_source_row_ids is not None
+            and source_row_id not in included_source_row_ids
+        ):
+            continue
         number = article_number(row, {}, first(row.get("content")))
         row["document_key"] = document_key(row, {})
         row["article_number"] = number
@@ -698,9 +710,30 @@ def create_document_rml_source(input_corpus: Path, output_csv: Path) -> int:
             first(row.get("id")), number, str(source_row_id)
         )
         row["date"] = date_to_xsd(row.get("date"))
-    columns = list(rows[0].keys()) if rows else []
-    write_csv(output_csv, rows, columns)
-    return len(rows)
+        filtered_rows.append(row)
+    columns = list(filtered_rows[0].keys()) if filtered_rows else []
+    write_csv(output_csv, filtered_rows, columns)
+    return len(filtered_rows)
+
+
+def filtered_source_row_ids(
+    results_csv: Path,
+    max_rows: int | None = None,
+) -> set[int]:
+    """Return corpus row ids that have at least one extracted triplet."""
+    result_rows = read_csv(results_csv)
+    if max_rows is not None:
+        result_rows = result_rows[:max_rows]
+
+    source_row_ids = set()
+    for result_position, result_row in enumerate(result_rows):
+        if not as_triplets(result_row.get("legal_triplets")):
+            continue
+        source_index = as_int(result_row.get("index"))
+        source_row_ids.add(
+            source_index if source_index is not None else result_position
+        )
+    return source_row_ids
 
 
 def create_triplet_and_mention_rml_sources(
@@ -925,7 +958,12 @@ def prepare_rml_sources(
     if dry_run:
         return
 
-    document_count = create_document_rml_source(input_corpus, sources.documents)
+    included_source_row_ids = filtered_source_row_ids(results_csv, max_rows)
+    document_count = create_document_rml_source(
+        input_corpus,
+        sources.documents,
+        included_source_row_ids=included_source_row_ids,
+    )
     triplet_count, mention_count = create_triplet_and_mention_rml_sources(
         config=config,
         input_corpus=input_corpus,
@@ -1009,7 +1047,9 @@ def build_commands(
             "--relation-mapping-json",
             str(merge_outputs.relation_mapping_json),
             "--topic-filter",
-            "all",
+            args.topic_filter,
+            "--filter-strategy",
+            args.filter_strategy,
             "--entity-similarity-threshold",
             str(args.entity_similarity_threshold),
             "--relation-similarity-threshold",
@@ -1143,6 +1183,23 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=DEFAULT_MERGE_BATCH_SIZE,
         help="Embedding batch size for the pre-flatten merge step.",
+    )
+    parser.add_argument(
+        "--filter-strategy",
+        choices=["article", "triplet"],
+        default=DEFAULT_FILTER_STRATEGY,
+        help=(
+            "Topic filtering strategy for the pre-flatten merge: use the article "
+            "domain (article) or each triplet topic (triplet)."
+        ),
+    )
+    parser.add_argument(
+        "--topic-filter",
+        default=DEFAULT_TOPIC_FILTER,
+        help=(
+            'Topic regex or "all" for the pre-flatten merge. With the article '
+            "strategy, it is matched against the article domain."
+        ),
     )
     parser.add_argument(
         "--relation-canonical-strategy",

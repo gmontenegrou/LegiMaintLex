@@ -10,12 +10,8 @@ from rdflib.namespace import OWL, RDF, RDFS
 
 provider = "openai"
 DEFAULT_BASE_RML = Path("src/data/csv_to_rml_mapping.ttl")
-DEFAULT_ONTOLOGY = Path(
-    f"exp/new_ontology/{provider}/ontology_extended_{provider}.ttl"
-)
-DEFAULT_OUTPUT = Path(
-    f"exp/kg/{provider}/csv_to_rml_mapping_{provider}_rules.ttl"
-)
+DEFAULT_ONTOLOGY = Path(f"exp/new_ontology/{provider}/ontology_extended_{provider}.ttl")
+DEFAULT_OUTPUT = Path(f"exp/kg/{provider}/csv_to_rml_mapping_{provider}_rules.ttl")
 DEFAULT_PROVIDER_LABELS = {
     "mistral": "Mistral AI",
     "openai": "OpenAI",
