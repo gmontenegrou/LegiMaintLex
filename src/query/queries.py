@@ -1,6 +1,6 @@
 ## Queries to view in the new ontology
 
-ontology_properties_counts = """
+gen_object_properties_nb = """
 PREFIX rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX semleg:  <https://w3id.org/semleg#>
 PREFIX semlegm: <https://w3id.org/semleg/maintenance#>
@@ -19,7 +19,7 @@ WHERE {
 }
 """
 
-ontology_properites_list = """
+gen_object_properties_by_name = """
 PREFIX rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX semleg:  <https://w3id.org/semleg#>
 PREFIX semlegm: <https://w3id.org/semleg/maintenance#>
@@ -43,7 +43,7 @@ ORDER BY DESC(?n_examples) ?predicate_local_name
 
 ## Queries to view in the KG
 
-class_types_counts = """
+gen_class_by_name = """
 PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 
@@ -56,7 +56,7 @@ GROUP BY ?class
 ORDER BY DESC(?count) ?class
 """
 
-sign = """
+gen_signature_by_name = """
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX semleg: <https://w3id.org/semleg#>
 PREFIX semlegm: <https://w3id.org/semleg/maintenance#>
@@ -77,128 +77,39 @@ WHERE {
 }
 GROUP BY ?subject_class ?predicate ?object_class
 ORDER BY DESC(?n_examples) ?subject_class ?predicate ?object_class
-
 """
 
-topic = """
+gen_topic = """
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX dcterms: <http://purl.org/dc/terms/>
 PREFIX semleg: <https://w3id.org/semleg#>
+PREFIX eli: <http://data.europa.eu/eli/ontology#>
+
 
 SELECT ?topic (COUNT(DISTINCT ?statement) AS ?count)
 WHERE {
-  ?statement a rdf:Statement ;
-             a semleg:ExtractedRelation ;
+  ?statement a eli:LegalResourceSubdivision ;
              dcterms:subject ?topic .
 }
 GROUP BY ?topic
 ORDER BY DESC(?count)
 """
 
-maintenance_by_topic_nb = """
-PREFIX dcterms: <http://purl.org/dc/terms/>
-PREFIX prov: <http://www.w3.org/ns/prov#>
-PREFIX semleg: <https://w3id.org/semleg#>
-
-SELECT (COUNT(DISTINCT ?article) AS ?n_articles_with_maintenance_triplets)
-WHERE {
-  ?statement a semleg:ExtractedRelation ;
-             dcterms:subject ?topic ;
-             prov:wasDerivedFrom ?article .
-
-  FILTER(LCASE(STR(?topic)) = "maintenanceactivity")
-}
-"""
-
-maintenance_by_topic_per_article = """
-PREFIX dcterms: <http://purl.org/dc/terms/>
-PREFIX prov: <http://www.w3.org/ns/prov#>
-PREFIX semleg: <https://w3id.org/semleg#>
-
-SELECT ?article (COUNT(DISTINCT ?statement) AS ?n_maintenance_triplets)
-WHERE {
-  ?statement a semleg:ExtractedRelation ;
-             dcterms:subject ?topic ;
-             prov:wasDerivedFrom ?article .
-
-  FILTER(LCASE(STR(?topic)) = "maintenanceactivity")
-}
-GROUP BY ?article
-ORDER BY DESC(?n_maintenance_triplets)
-
-"""
-
-at_least_one_per_article = """
-PREFIX dcterms: <http://purl.org/dc/terms/>
-PREFIX prov: <http://www.w3.org/ns/prov#>
-PREFIX semleg: <https://w3id.org/semleg#>
-
-SELECT ?topic (COUNT(DISTINCT ?article) AS ?n_articles)
-WHERE {
-  ?statement a semleg:ExtractedRelation ;
-             dcterms:subject ?topic ;
-             prov:wasDerivedFrom ?article .
-}
-GROUP BY ?topic
-ORDER BY DESC(?n_articles)
-"""
-
-triples_by_article_topic = """
-PREFIX dcterms: <http://purl.org/dc/terms/>
-PREFIX prov: <http://www.w3.org/ns/prov#>
-PREFIX semleg: <https://w3id.org/semleg#>
-
-SELECT ?article ?article_subject
-       (COUNT(DISTINCT ?maintenance_statement) AS ?n_maintenance_triplets)
-WHERE {
-  {
-    SELECT DISTINCT ?article ?article_subject
-    WHERE {
-      ?article dcterms:subject ?article_subject .
-    }
-    # LIMIT 100
-  }
-
-  OPTIONAL {
-    ?maintenance_statement a semleg:ExtractedRelation ;
-                           prov:wasDerivedFrom ?article ;
-                           dcterms:subject ?triplet_topic .
-
-    FILTER(LCASE(STR(?triplet_topic)) = "maintenanceactivity")
-  }
-}
-GROUP BY ?article ?article_subject
-ORDER BY DESC(?n_maintenance_triplets)
-
-"""
-
 ## CQs
 
 # CQ1: Which Roles Do Actors Play In Actions?
 
-CQ_query = """
-PREFIX semleg: <https://w3id.org/semleg#>
-PREFIX semlegm: <https://w3id.org/semleg/maintenance#>
-PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
-
-SELECT ?actor ?actor_label ?role_property ?action ?action_label
-WHERE {
-  ?actor a semleg:Actor ;
-         ?role_property ?action .
-
-  ?action a semleg:Action .
-
-  OPTIONAL { ?actor skos:prefLabel ?actor_label . }
-  OPTIONAL { ?action skos:prefLabel ?action_label . }
-}
-ORDER BY ?actor_label ?role_property ?action_label
-"""
-
-CQ1_query_v2 = """
+CQ1 = """
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
 PREFIX semleg: <https://w3id.org/semleg#>
 
-SELECT DISTINCT ?class_subject ?role_property ?class_object
+SELECT DISTINCT
+    ?class_subject
+    ?label_subject
+    ?role_property
+    ?class_object
+    ?label_object
 WHERE {
   {
     ?statement a semleg:ExtractedRelation ;
@@ -225,128 +136,19 @@ WHERE {
     BIND(semleg:Action AS ?class_subject)
     BIND(semleg:Actor AS ?class_object)
   }
+
+  OPTIONAL {
+    ?subject skos:altLabel ?label_subject .
+  }
+
+  OPTIONAL {
+    ?object skos:altLabel ?label_object .
+  }
 }
 ORDER BY ?class_subject ?role_property ?class_object
 """
 
-# CQ2: Under Which Conditions, Reasons, Modalities, Temporal Constraints, And Locations Must An Action Or Artifact Comply?
-
-CQ2_query = """
-PREFIX semleg: <https://w3id.org/semleg#>
-PREFIX semlegm: <https://w3id.org/semleg/maintenance#>
-PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
-
-SELECT ?element ?element_label ?element_type
-       ?constraint_property ?constraint ?constraint_label ?constraint_type
-WHERE {
-  VALUES ?element_type {
-    semleg:Action
-    semleg:Artifact
-  }
-
-  VALUES ?constraint_type {
-    semleg:Condition
-    semleg:Reason
-    semleg:Time
-    semleg:Location
-    semlegm:Modality
-  }
-
-  ?element a ?element_type ;
-           ?constraint_property ?constraint .
-
-  ?constraint a ?constraint_type .
-
-  OPTIONAL { ?element skos:prefLabel ?element_label . }
-  OPTIONAL { ?constraint skos:prefLabel ?constraint_label . }
-}
-ORDER BY ?element_type ?element_label ?constraint_type
-"""
-
-# CQ3: Which Legal Sources Define Or Justify The Meaning Of An Action?
-
-CQ3_query = """
-PREFIX semleg: <https://w3id.org/semleg#>
-PREFIX semlegm: <https://w3id.org/semleg/maintenance#>
-PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
-
-SELECT ?action ?action_label ?source_property ?source ?source_label
-WHERE {
-  VALUES ?source_property {
-    semlegm:hasSource
-    semlegm:justifiedBy
-    semlegm:associatedWithModality
-  }
-
-  ?action a semleg:Action ;
-          ?source_property ?source .
-
-  ?source a semleg:Source .
-
-  OPTIONAL { ?action skos:prefLabel ?action_label . }
-  OPTIONAL { ?source skos:prefLabel ?source_label . }
-}
-ORDER BY ?action_label ?source_property ?source_label
-"""
-# CQ4: Which Elements Are Justified By Which Legal Sources?
-
-CQ4_query = """
-PREFIX semleg: <https://w3id.org/semleg#>
-PREFIX semlegm: <https://w3id.org/semleg/maintenance#>
-PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
-
-SELECT ?element ?element_label ?element_type
-       ?source_property ?source ?source_label
-WHERE {
-  VALUES ?element_type {
-    semleg:Action
-    semleg:Condition
-  }
-
-  VALUES ?source_property {
-    semlegm:hasSource
-    semlegm:justifiedBy
-  }
-
-  ?element a ?element_type ;
-           ?source_property ?source .
-
-  ?source a semleg:Source .
-
-  OPTIONAL { ?element skos:prefLabel ?element_label . }
-  OPTIONAL { ?source skos:prefLabel ?source_label . }
-}
-ORDER BY ?element_type ?element_label ?source_property
-"""
-
-# CQ5: Which Artifacts Are Affected By Actions, And What Roles Do They Play?
-
-CQ5_query = """
-PREFIX semleg: <https://w3id.org/semleg#>
-PREFIX semlegm: <https://w3id.org/semleg/maintenance#>
-PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
-
-SELECT ?action ?action_label
-       ?artifact_role_property
-       ?artifact ?artifact_label
-WHERE {
-  ?action a semleg:Action ;
-          ?artifact_role_property ?artifact .
-
-  ?artifact a semleg:Artifact .
-
-  OPTIONAL { ?action skos:prefLabel ?action_label . }
-  OPTIONAL { ?artifact skos:prefLabel ?artifact_label . }
-}
-ORDER BY ?action_label ?artifact_role_property ?artifact_label
-"""
-
-
-## CQs with source article and article content
-
-# CQ1: Which roles do actors play in actions?
-
-CQ1_with_article_content_query = """
+CQ1_with_article_content = """
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX prov: <http://www.w3.org/ns/prov#>
 PREFIX eli: <http://data.europa.eu/eli/ontology#>
@@ -382,8 +184,8 @@ WHERE {
     BIND("Action -> Actor" AS ?direction)
   }
 
-  OPTIONAL { ?actor skos:prefLabel ?actor_label . }
-  OPTIONAL { ?action skos:prefLabel ?action_label . }
+  OPTIONAL { ?actor skos:altLabel ?actor_label . }
+  OPTIONAL { ?action skos:altLabel ?action_label . }
   OPTIONAL { ?article eli:id_local ?article_id_local . }
   OPTIONAL { ?article eli:number ?article_number . }
   OPTIONAL {
@@ -394,11 +196,59 @@ WHERE {
 ORDER BY ?article_id_local ?article_number ?direction ?actor_label ?role_property ?action_label
 """
 
+# CQ2: Under Which Conditions, Reasons, Modalities, Temporal Constraints, And Locations Must An Action Or Artifact Comply?
+
+CQ2 = """
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX eli: <http://data.europa.eu/eli/ontology#>
+PREFIX cnt: <http://www.w3.org/2011/content#>
+PREFIX semleg: <https://w3id.org/semleg#>
+PREFIX semlegm: <https://w3id.org/semleg/maintenance#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+
+SELECT ?article 
+       ?element ?element_label ?element_type
+       ?constraint_property ?constraint ?constraint_label ?constraint_type
+       ?statement
+WHERE {
+  VALUES ?element_type {
+    semleg:Action
+    semleg:Artifact
+  }
+
+  VALUES ?constraint_type {
+    semleg:Condition
+    semleg:Reason
+    semleg:Time
+    semleg:Location
+    semlegm:Modality
+  }
+
+  ?statement a semleg:ExtractedRelation ;
+             rdf:subject ?element ;
+             rdf:predicate ?constraint_property ;
+             rdf:object ?constraint ;
+             prov:hadPrimarySource ?article .
+
+  ?element a ?element_type .
+  ?constraint a ?constraint_type .
+
+  OPTIONAL {
+    ?element skos:prefLabel ?element_label .
+  }
+
+  OPTIONAL {
+    ?constraint skos:prefLabel ?constraint_label .
+  }
+}
+ORDER BY ?article ?element_type ?element_label ?constraint_type
+"""
 
 # CQ2: Under which conditions, reasons, modalities, temporal constraints,
 # and locations must a given action be performed or an artifact comply?
 
-CQ2_with_article_content_query = """
+CQ2_with_article_content = """
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX prov: <http://www.w3.org/ns/prov#>
 PREFIX eli: <http://data.europa.eu/eli/ontology#>
@@ -446,10 +296,36 @@ WHERE {
 ORDER BY ?article_id_local ?article_number ?element_type ?element_label ?constraint_type
 """
 
+# CQ3: Which Legal Sources Define Or Justify The Meaning Of An Action?
+
+CQ3 = """
+PREFIX semleg: <https://w3id.org/semleg#>
+PREFIX semlegm: <https://w3id.org/semleg/maintenance#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+
+SELECT ?action ?action_label ?source_property ?source ?source_label
+WHERE {
+  VALUES ?source_property {
+    semlegm:hasSource
+    semlegm:justifiedBy
+    semlegm:associatedWithModality
+  }
+
+  ?action a semleg:Action ;
+          ?source_property ?source .
+
+  ?source a semleg:Source .
+
+  OPTIONAL { ?action skos:prefLabel ?action_label . }
+  OPTIONAL { ?source skos:prefLabel ?source_label . }
+}
+ORDER BY ?action_label ?source_property ?source_label
+"""
+
 
 # CQ3: Which legal sources define or justify the meaning of an action?
 
-CQ3_with_article_content_query = """
+CQ3_with_article_content = """
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX prov: <http://www.w3.org/ns/prov#>
 PREFIX eli: <http://data.europa.eu/eli/ontology#>
@@ -528,10 +404,46 @@ WHERE {
 ORDER BY ?action_label ?source_property ?source_label
 """
 
+# CQ4: Which Elements Are Justified By Which Legal Sources?
+
+CQ4 = """
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX eli: <http://data.europa.eu/eli/ontology#>
+PREFIX cnt: <http://www.w3.org/2011/content#>
+PREFIX semleg: <https://w3id.org/semleg#>
+PREFIX semlegm: <https://w3id.org/semleg/maintenance#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+
+SELECT ?article 
+       ?element ?element_label ?element_type
+       ?source_property ?source ?source_label
+       ?statement
+WHERE {
+  VALUES ?element_type {
+    semleg:Action
+    semleg:Condition
+  }
+
+  ?statement a semleg:ExtractedRelation ;
+             rdf:subject ?element ;
+             rdf:predicate ?source_property ;
+             rdf:object ?source ;
+             prov:hadPrimarySource ?article .
+
+  ?element a ?element_type .
+  ?source a semleg:Source .
+
+  OPTIONAL { ?element skos:prefLabel ?elementar_label . }
+  OPTIONAL { ?source skos:prefLabel ?source_label . }
+}
+  
+ORDER BY ?article ?element_type ?element_label ?source_property
+"""
 
 # CQ4: Which elements (conditions, actions) are justified by which legal sources?
 
-CQ4_with_article_content_query = """
+CQ4_with_article_content = """
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX prov: <http://www.w3.org/ns/prov#>
 PREFIX eli: <http://data.europa.eu/eli/ontology#>
@@ -576,10 +488,40 @@ WHERE {
 ORDER BY ?article_id_local ?article_number ?element_type ?element_label ?source_property
 """
 
+# CQ5: Which Artifacts Are Affected By Actions, And What Roles Do They Play?
 
+CQ5 = """
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX eli: <http://data.europa.eu/eli/ontology#>
+PREFIX cnt: <http://www.w3.org/2011/content#>
+PREFIX semleg: <https://w3id.org/semleg#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+
+SELECT ?article 
+       ?action ?action_label
+       ?artifact_role_property
+       ?artifact ?artifact_label
+       ?statement
+WHERE {
+  ?statement a semleg:ExtractedRelation ;
+             rdf:subject ?action ;
+             rdf:predicate ?artifact_role_property ;
+             rdf:object ?artifact ;
+             prov:hadPrimarySource ?article .
+
+  ?action a semleg:Action .
+  ?artifact a semleg:Artifact .
+
+  OPTIONAL { ?action skos:prefLabel ?action_label . }
+  OPTIONAL { ?artifact skos:prefLabel ?artifact_label . }
+  
+}
+ORDER BY ?article ?action_label ?artifact_role_property ?artifact_label
+"""
 # CQ5: Which artifacts are affected by actions, and what roles do they play?
 
-CQ5_with_article_content_query = """
+CQ5_with_article_content = """
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX prov: <http://www.w3.org/ns/prov#>
 PREFIX eli: <http://data.europa.eu/eli/ontology#>
@@ -618,7 +560,7 @@ ORDER BY ?article_id_local ?article_number ?action_label ?artifact_role_property
 
 # entities of a given article
 
-query_entities_of_article = """
+z_construct_example_entities_par_article = """
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX prov: <http://www.w3.org/ns/prov#>
@@ -681,7 +623,7 @@ WHERE {
 }
 """
 
-triples_par_article = """
+z_construct_triples_par_article = """
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX prov: <http://www.w3.org/ns/prov#>
 PREFIX semleg: <https://w3id.org/semleg#>
@@ -708,7 +650,7 @@ WHERE {
 }
 """
 
-query_analysis_of_signatures = """
+z_example_signatures_par_predicate = """
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX semleg: <https://w3id.org/semleg#>
 PREFIX semlegm: <https://w3id.org/semleg/maintenance#>

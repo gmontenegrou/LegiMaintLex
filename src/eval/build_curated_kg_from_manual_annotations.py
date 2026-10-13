@@ -12,7 +12,6 @@ from typing import Any
 from rdflib import Graph, Literal, Namespace, URIRef
 from rdflib.namespace import RDF, RDFS, XSD
 
-
 SEMLEG = Namespace("https://w3id.org/semleg#")
 SEMLEGM = Namespace("https://w3id.org/semleg/maintenance#")
 PROV = Namespace("http://www.w3.org/ns/prov#")
@@ -453,10 +452,18 @@ def copy_kg_and_append_curation(
 
     curation_nt = curation.serialize(format="nt")
     with target_kg.open("a", encoding="utf-8", newline="\n") as handle:
-        handle.write("\n\n# ---------------------------------------------------------------------------\n")
-        handle.write("# Statement-level manual curation layer appended to the raw KG.\n")
-        handle.write("# For corrected predicates, use semlegm:effectivePredicate or semlegm:curatedPredicate.\n")
-        handle.write("# The original rdf:predicate triples are intentionally preserved in append mode.\n\n")
+        handle.write(
+            "\n\n# ---------------------------------------------------------------------------\n"
+        )
+        handle.write(
+            "# Statement-level manual curation layer appended to the raw KG.\n"
+        )
+        handle.write(
+            "# For corrected predicates, use semlegm:effectivePredicate or semlegm:curatedPredicate.\n"
+        )
+        handle.write(
+            "# The original rdf:predicate triples are intentionally preserved in append mode.\n\n"
+        )
         handle.write(curation_nt)
 
 

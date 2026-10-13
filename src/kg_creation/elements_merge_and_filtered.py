@@ -16,10 +16,13 @@ from rdflib.namespace import OWL, RDF, RDFS
 MISTRAL_EMBED_MODEL = "mistral-embed"
 OPENAI_EMBED_MODEL = "text-embedding-3-large"
 DEFAULT_BATCH_SIZE = 128
-DEFAULT_ENTITY_SIMILARITY_THRESHOLD = 0.7
-DEFAULT_RELATION_SIMILARITY_THRESHOLD = 0.7
+DEFAULT_ENTITY_SIMILARITY_THRESHOLD = 0.9
+DEFAULT_RELATION_SIMILARITY_THRESHOLD = 0.9
 DEFAULT_EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "openai").strip().lower()
-DEFAULT_TOPIC_FILTER = "maintenanceActivity"
+DEFAULT_ORIGINAL = "src/data/maintreg_database_clean.csv"
+# DEFAULT_TOPIC_FILTER = "maintenanceActivity"
+DEFAULT_TOPIC_FILTER = r"\bportes?\b|\baccessibilité?\b"
+DEFAULT_FILTER_STRATEGY = "article"
 DEFAULT_RELATION_CANONICAL_STRATEGY = "frequency"
 
 _client_cache = {}
@@ -769,11 +772,28 @@ def parse_legal_triplets_cell(value):
 
 
 def explode_triplets_dataframe(
-    df,
+    original_df,
+    df=None,
     triplets_column="triples",
     topic_filter=DEFAULT_TOPIC_FILTER,
     source_text_column="content",
+    filter_strategy=DEFAULT_FILTER_STRATEGY,
 ):
+    if filter_strategy not in {"triplet", "article"}:
+        raise ValueError("filter_strategy must be 'triplet' or 'article'")
+    if filter_strategy == "article":
+        domain_column = "domain"
+    elif filter_strategy == "triplet":
+        domain_column = "topic"
+
+    if df is None:
+        df = (
+            pd.read_csv(original_df)
+            if isinstance(original_df, (str, os.PathLike))
+            else original_df
+        )
+    elif isinstance(original_df, (str, os.PathLike)):
+        original_df = pd.read_csv(original_df)
     keep_all = topic_filter is None or topic_filter == "all"
     allowed_topics = None
     if not keep_all and isinstance(topic_filter, (list, set, tuple)):
@@ -781,17 +801,27 @@ def explode_triplets_dataframe(
 
     rows = []
     for idx, row in df.iterrows():
+        source_row = row
+        if isinstance(original_df, pd.DataFrame) and idx in original_df.index:
+            source_row = original_df.loc[idx]
         source_text = row.get(source_text_column, "")
         triplets = parse_legal_triplets_cell(row.get(triplets_column))
         for triplet in triplets:
             if not isinstance(triplet, dict):
                 continue
 
-            topic = triplet.get("topic")
+            topic = (
+                source_row.get(domain_column)
+                if filter_strategy == "article"
+                else triplet.get("topic")
+            )
             if not keep_all:
                 if allowed_topics is not None and topic not in allowed_topics:
                     continue
-                if allowed_topics is None and topic != topic_filter:
+                if allowed_topics is None and (
+                    not isinstance(topic_filter, str)
+                    or re.search(topic_filter, str(topic), flags=re.IGNORECASE) is None
+                ):
                     continue
 
             flat_triplet = triplet.copy()
@@ -820,7 +850,12 @@ def rebuild_triplets_in_dataframe(
     normalized_triplets_df,
     triplets_column="triples",
     topic_filter=None,
+    domain_column="domain",
+    filter_strategy=DEFAULT_FILTER_STRATEGY,
+    original_df=None,
 ):
+    if filter_strategy not in {"triplet", "article"}:
+        raise ValueError("filter_strategy must be 'triplet' or 'article'")
     df_out = df.copy()
 
     keep_all = topic_filter is None or topic_filter == "all"
@@ -828,19 +863,25 @@ def rebuild_triplets_in_dataframe(
     if not keep_all and isinstance(topic_filter, (list, set, tuple)):
         allowed_topics = set(topic_filter)
 
-    def keep_topic(triplet):
+    def keep_topic(topic):
         if keep_all:
             return True
-        topic = triplet.get("topic")
         if allowed_topics is not None:
             return topic in allowed_topics
-        return topic == topic_filter
+        return (
+            isinstance(topic_filter, str)
+            and re.search(topic_filter, str(topic), flags=re.IGNORECASE) is not None
+        )
+
+    def keep_triplet(triplet, article_topic):
+        topic = article_topic if filter_strategy == "article" else triplet.get("topic")
+        return keep_topic(topic)
 
     grouped = {}
     for _, row in normalized_triplets_df.iterrows():
         src_idx = row["_source_row_index"]
         row_dict = row.drop(labels=["_source_row_index"]).to_dict()
-        if keep_topic(row_dict):
+        if keep_topic(row_dict.get("topic")):
             grouped.setdefault(src_idx, []).append(row_dict)
 
     new_col = []
@@ -851,8 +892,17 @@ def rebuild_triplets_in_dataframe(
             original_triplets = parse_legal_triplets_cell(
                 df_out.at[idx, triplets_column]
             )
+            topic_source_df = original_df if original_df is not None else df_out
+            if domain_column not in topic_source_df.columns:
+                raise KeyError(
+                    f"Column {domain_column!r} is required for filter_strategy="
+                    f"'article'. Available columns: {list(topic_source_df.columns)}"
+                )
+            article_topic = topic_source_df.at[idx, domain_column]
             triplets = [
-                t for t in original_triplets if isinstance(t, dict) and keep_topic(t)
+                t
+                for t in original_triplets
+                if isinstance(t, dict) and keep_triplet(t, article_topic)
             ]
         new_col.append(triplets)
 
@@ -936,6 +986,7 @@ def run_merge_pipeline(
     embedding_provider=DEFAULT_EMBEDDING_PROVIDER,
     embedding_model=None,
     topic_filter=DEFAULT_TOPIC_FILTER,
+    filter_strategy=DEFAULT_FILTER_STRATEGY,
     entity_similarity_threshold=DEFAULT_ENTITY_SIMILARITY_THRESHOLD,
     relation_similarity_threshold=DEFAULT_RELATION_SIMILARITY_THRESHOLD,
     relation_canonical_strategy=DEFAULT_RELATION_CANONICAL_STRATEGY,
@@ -966,12 +1017,15 @@ def run_merge_pipeline(
         )
 
     df = pd.read_csv(input_file)
+    original_df = pd.read_csv(DEFAULT_ORIGINAL)
     triplets_column = "legal_triplets" if "legal_triplets" in df.columns else "triples"
     print(f"Using triplets column: {triplets_column}")
     flat_triplets_df = explode_triplets_dataframe(
-        df,
+        original_df=original_df,
+        df=df,
         triplets_column=triplets_column,
         topic_filter=topic_filter,
+        filter_strategy=filter_strategy,
     )
     if flat_triplets_df.empty:
         print(
@@ -1008,6 +1062,8 @@ def run_merge_pipeline(
         merged_relations_df,
         triplets_column=triplets_column,
         topic_filter=topic_filter,
+        filter_strategy=filter_strategy,
+        original_df=original_df,
     )
     rebuilt_df[triplets_column] = rebuilt_df[triplets_column].map(
         lambda triplets: json.dumps(triplets, ensure_ascii=False)
@@ -1098,6 +1154,15 @@ def build_arg_parser():
         help='Topic filter. Use "all" to keep all triplets.',
     )
     parser.add_argument(
+        "--filter-strategy",
+        choices=["article", "triplet"],
+        default=DEFAULT_FILTER_STRATEGY,
+        help=(
+            "Filter using the article domain (article) or each triplet topic "
+            "(triplet)."
+        ),
+    )
+    parser.add_argument(
         "--entity-similarity-threshold",
         type=float,
         default=DEFAULT_ENTITY_SIMILARITY_THRESHOLD,
@@ -1164,6 +1229,7 @@ def main():
         embedding_provider=args.provider,
         embedding_model=args.model,
         topic_filter=args.topic_filter,
+        filter_strategy=args.filter_strategy,
         entity_similarity_threshold=args.entity_similarity_threshold,
         relation_similarity_threshold=args.relation_similarity_threshold,
         relation_canonical_strategy=args.relation_canonical_strategy,

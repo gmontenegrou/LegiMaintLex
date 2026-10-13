@@ -125,7 +125,9 @@ def relation_extraction_run_uri(provider: str, model: str) -> str:
 
 
 def mention_extraction_activity_uri(provider: str, model: str) -> str:
-    return f"{INSTANCE_NS}/mentionExtractionActivity_{safe_instance_id(provider, model)}"
+    return (
+        f"{INSTANCE_NS}/mentionExtractionActivity_{safe_instance_id(provider, model)}"
+    )
 
 
 def rml_provenance_fields(
@@ -196,7 +198,9 @@ def unique_columns(column_groups: list[list[str]]) -> list[str]:
     return columns
 
 
-def interleave_rows(provider_rows: dict[str, list[dict[str, str]]]) -> list[dict[str, str]]:
+def interleave_rows(
+    provider_rows: dict[str, list[dict[str, str]]],
+) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     max_len = max((len(items) for items in provider_rows.values()), default=0)
     for index in range(max_len):
@@ -274,7 +278,9 @@ def write_manifest(
     manifest_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
-def prepare_combined_inputs(force: bool = True, dry_run: bool = False) -> CombinedOutputs:
+def prepare_combined_inputs(
+    force: bool = True, dry_run: bool = False
+) -> CombinedOutputs:
     outputs = COMBINED_OUTPUTS
     row_count: int | None = None
     ontology_triples: int | None = None
@@ -292,7 +298,9 @@ def prepare_combined_inputs(force: bool = True, dry_run: bool = False) -> Combin
 
     if force or not repo_path(outputs.ontology_ttl).exists():
         _, ontology_triples = combine_ontologies(outputs.ontology_ttl)
-        print(f"Combined ontology triples: {ontology_triples} -> {outputs.ontology_ttl}")
+        print(
+            f"Combined ontology triples: {ontology_triples} -> {outputs.ontology_ttl}"
+        )
 
     write_manifest(outputs, row_count=row_count, ontology_triples=ontology_triples)
     print(f"Combined manifest: {outputs.manifest_json}")
@@ -309,10 +317,7 @@ def replace_constant_iri_prefix(text: str, iri_prefix: str, reference: str) -> s
 
 
 def replace_constant_iri(text: str, iri: str, reference: str) -> str:
-    pattern = (
-        rf"rr:constant\s+{re.escape(iri)}\s*;\s*"
-        r"rr:termType\s+rr:IRI"
-    )
+    pattern = rf"rr:constant\s+{re.escape(iri)}\s*;\s*" r"rr:termType\s+rr:IRI"
     replacement = f'rml:reference "{reference}" ;\n            rr:termType rr:IRI'
     return re.sub(pattern, replacement, text)
 
@@ -323,7 +328,9 @@ def replace_literal_for_predicate(block: str, predicate: str, reference: str) ->
         r"rr:objectMap\s*\[\s*)"
         r'rr:constant\s+"[^"]*"\s*;\s*rr:datatype\s+xsd:string'
     )
-    replacement = rf'\1rml:reference "{reference}" ;' "\n            rr:datatype xsd:string"
+    replacement = (
+        rf'\1rml:reference "{reference}" ;' "\n            rr:datatype xsd:string"
+    )
     return re.sub(pattern, replacement, block)
 
 
