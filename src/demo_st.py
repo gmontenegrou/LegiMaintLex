@@ -140,7 +140,10 @@ def render_parcourir_page():
     with st.container(horizontal=True):
         st.metric("RDF triples in KG", "1,936,288", "Notebook load result", border=True)
         st.metric(
-            "Matched articles", f"{len(articles):,}", f"{PREFIX_DATA}_uri.csv", border=True
+            "Matched articles",
+            f"{len(articles):,}",
+            f"{PREFIX_DATA}_uri.csv",
+            border=True,
         )
         st.metric(
             "Extracted triples",
