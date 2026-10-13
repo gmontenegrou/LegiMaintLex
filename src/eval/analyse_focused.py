@@ -14,7 +14,7 @@ from rdflib.term import Node, URIRef
 DEFAULT_KG = "exp/kg/full/mistral/LegiMaintLex_mistral_fusion_0_9.ttl"
 DEFAULT_PATTERN = r"\bportes?\b|\baccessibilité?\b|\bportails?\b"
 DEFAULT_OUTPUT_DIR = "src/data/corpus_analysis_new"
-DEFAULT_PREFIX = "batiment"
+DEFAULT_PREFIX = "batiment_content"
 
 DCTERMS = Namespace("http://purl.org/dc/terms/")
 PROV = Namespace("http://www.w3.org/ns/prov#")
