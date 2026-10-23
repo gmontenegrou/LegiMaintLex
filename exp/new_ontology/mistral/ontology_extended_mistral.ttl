@@ -239,8 +239,8 @@ semlegm:mustComplyWith a owl:ObjectProperty ;
 
 semlegm:mustNotExceed a owl:ObjectProperty ;
     rdfs:comment "Relates a time constraint to the action that must not exceed the specified duration."^^xsd:string ;
-    rdfs:domain semleg:Time ;
-    rdfs:range semleg:Action ;
+    rdfs:domain semleg:Action ;
+    rdfs:range semleg:Time ;
     semlegm:confidenceValue 0.87 ;
     semlegm:textualEvidenceCount 1 .
 
