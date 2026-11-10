@@ -40,7 +40,7 @@ Legal articles are represented as subdivisions of their corresponding legal reso
 
 * Local source identifier (eli:id_local): local identifier inherited from the Légifrance source, e.g., JORFTEXT000000721798.
 * Parent legal document (eli:is_part_of): URI of the legal document to which the article belongs.
-* Regulatory topic (dcterms:subject): thematic category associated with the article in the corpus, e.g., Eau et santé publique.
+* Regulatory topic (dcterms:subject): one or more reusable SKOS concepts associated with the article. Each topic has a stable URI and a French preferred label.
 * Source start date (oa:sourceDateStart): start date associated with the legal source.
 * Article content (semleg:hasContent): URI of the resource representing the textual content of the article.
 
@@ -49,9 +49,26 @@ Legal articles are represented as subdivisions of their corresponding legal reso
     a eli:LegalResourceSubdivision ;
     eli:id_local "JORFTEXT000000721798"^^xsd:string ;
     eli:is_part_of <https://w3id.org/semleg/legimaintlex/resource/document/arrete-du-12-aout-1991-portant-application-de-la-directive-n-90-396-c-e-e-relati-9dc98282f046> ;
-    dcterms:subject "['Eau et santé publique']"^^xsd:string ;
+    dcterms:subject inst:topic/eau-et-sante-publique ;
+    dcterms:subject inst:topic/accessibilite-handicapes ;
     oa:sourceDateStart "1991-08-12"^^xsd:date ;
     semleg:hasContent <https://w3id.org/semleg/legimaintlex/resource/document/arrete-du-12-aout-1991-portant-application-de-la-directive-n-90-396-c-e-e-relati-9dc98282f046/article/article-JORFTEXT000000721798-1982/content> .
+```
+
+## Regulatory Topic
+
+Article topics are represented as reusable `skos:Concept` resources. An article
+may refer to multiple topics through repeated `dcterms:subject` properties.
+Topic labels are not stored as serialized lists.
+
+```
+inst:topic/eau-et-sante-publique
+    a skos:Concept ;
+    skos:prefLabel "Eau et santé publique"@fr .
+
+inst:topic/accessibilite-handicapes
+    a skos:Concept ;
+    skos:prefLabel "Accessibilité handicapés"@fr .
 ```
 
 ## Article Content
@@ -72,14 +89,18 @@ Entities represent concepts, actors, artifacts, actions, conditions, or other do
 * Entity type (semleg:Condition, semleg:Actor, etc.): semantic class assigned to the extracted entity according to the ontology. In the example below, the entity is identified as a semleg:Condition.
 * SKOS concept representation (skos:Concept): indicates that the entity is represented as a concept within the knowledge graph.
 * Provenance entity (prov:Entity): identifies the entity as a PROV-O entity, allowing provenance information to be associated with it.
-* Preferred label (skos:prefLabel): canonical label used to represent the entity in the KG.
-* Alternative label (skos:altLabel): lexical variant associated with the entity. It can preserve alternative surface forms identified during extraction or entity fusion.
+* Preferred label (skos:prefLabel): the single canonical label selected for the entity in the KG.
+* Alternative label (skos:altLabel): a genuine lexical variant associated with the entity, such as a capitalization variant. Exact duplicates and labels that are only truncations of the preferred label are not represented as alternative labels.
+
+Topics and extracted entities are both represented as `skos:Concept` resources,
+but they have different roles: `inst:topic/...` resources classify legal
+articles, while `inst:entity/...` resources represent concepts identified in
+article content.
 ```
 <https://w3id.org/semleg/legimaintlex/resource/entity/condition/specifications-de-la-norme-nf-en-60118-4-2007-51cd036fdf2c>
     a skos:Concept,
         prov:Entity,
         semleg:Condition ;
-    skos:altLabel "spécifications de la norme NF EN 60118-4:2007"^^xsd:string ;
     skos:prefLabel "spécifications de la norme NF EN 60118-4:2007"^^xsd:string .
 ```
 ## Extracted Relations

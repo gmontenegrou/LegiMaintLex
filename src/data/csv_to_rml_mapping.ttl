@@ -19,6 +19,10 @@ map:RawLegalDocumentSource
     rml:source "src/data/maintreg_database_clean.csv" ;
     rml:referenceFormulation ql:CSV .
 
+map:ArticleTopicSource
+    rml:source "src/data/article_topics_rml.csv" ;
+    rml:referenceFormulation ql:CSV .
+
 map:NormalizedTripletSource
     rml:source "src/output/rml/legal_triplets_normalized.csv" ;
     rml:referenceFormulation ql:CSV .
@@ -85,17 +89,41 @@ map:ArticleTriplesMap
         ]
     ] ;
     rr:predicateObjectMap [
-        rr:predicate dcterms:subject ;
-        rr:objectMap [
-            rml:reference "domain" ;
-            rr:datatype xsd:string
-        ]
-    ] ;
-    rr:predicateObjectMap [
         rr:predicate semleg:hasContent ;
         rr:objectMap [
             rr:template "https://w3id.org/semleg/legimaintlex/resource/document/{id}/article/{num}/content" ;
             rr:termType rr:IRI
+        ]
+    ] .
+
+map:ArticleTopicTriplesMap
+    a rr:TriplesMap ;
+    rml:logicalSource map:ArticleTopicSource ;
+    rr:subjectMap [
+        rml:reference "article_uri" ;
+        rr:termType rr:IRI
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate dcterms:subject ;
+        rr:objectMap [
+            rr:template "https://w3id.org/semleg/legimaintlex/resource/topic/{topic_slug}" ;
+            rr:termType rr:IRI
+        ]
+    ] .
+
+map:TopicConceptTriplesMap
+    a rr:TriplesMap ;
+    rml:logicalSource map:ArticleTopicSource ;
+    rr:subjectMap [
+        rr:template "https://w3id.org/semleg/legimaintlex/resource/topic/{topic_slug}" ;
+        rr:termType rr:IRI ;
+        rr:class skos:Concept
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate skos:prefLabel ;
+        rr:objectMap [
+            rml:reference "topic_label" ;
+            rr:language "fr"
         ]
     ] .
 
@@ -133,7 +161,7 @@ map:HeadEntityTriplesMap
     rr:predicateObjectMap [
         rr:predicate skos:altLabel ;
         rr:objectMap [
-            rml:reference "head" ;
+            rml:reference "head_alt_label" ;
             rr:datatype xsd:string
         ]
     ] ;
@@ -164,7 +192,7 @@ map:TailEntityTriplesMap
     rr:predicateObjectMap [
         rr:predicate skos:altLabel ;
         rr:objectMap [
-            rml:reference "tail" ;
+            rml:reference "tail_alt_label" ;
             rr:datatype xsd:string
         ]
     ] ;

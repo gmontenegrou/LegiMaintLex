@@ -78,6 +78,7 @@ TRIPLET_RML_COLUMNS = [
     "triplet_index",
     "head",
     "head_pref_label",
+    "head_alt_label",
     "head_resolution_mode",
     "head_resolved_entity_id",
     "head_uri",
@@ -89,6 +90,7 @@ TRIPLET_RML_COLUMNS = [
     "relation_iri",
     "tail",
     "tail_pref_label",
+    "tail_alt_label",
     "tail_resolution_mode",
     "tail_resolved_entity_id",
     "tail_uri",
@@ -137,6 +139,7 @@ class ProviderConfig:
 @dataclass(frozen=True)
 class RmlSourceFiles:
     documents: Path
+    topics: Path
     triplets: Path
     mentions: Path
 
@@ -245,6 +248,19 @@ def short_label(value: Any, max_chars: int = 50) -> str:
     return cut or text[:max_chars].strip()
 
 
+def meaningful_alt_label(value: Any, pref_label: Any) -> str:
+    """Keep aliases, but discard the full label and its truncation."""
+    label = normalized_text(value)
+    pref = normalized_text(pref_label)
+    if not label or not pref:
+        return ""
+    if label.casefold() == pref.casefold():
+        return ""
+    if label.casefold().startswith(pref.casefold()):
+        return ""
+    return label
+
+
 def label_sort_key(label: str, count: int) -> tuple[int, int, int, str]:
     stripped = label.strip()
     sentence_initial_upper = (
@@ -270,7 +286,7 @@ def choose_label_variant(labels: list[str]) -> str:
     return max(counts, key=lambda label: label_sort_key(label, counts[label]))
 
 
-def collapse_combined_entity_labels(triplet_rows: list[dict[str, str]]) -> None:
+def collapse_entity_labels(triplet_rows: list[dict[str, str]]) -> None:
     labels_by_entity: dict[str, dict[str, list[str]]] = {}
     for row in triplet_rows:
         for role in ("head", "tail"):
@@ -281,7 +297,7 @@ def collapse_combined_entity_labels(triplet_rows: list[dict[str, str]]) -> None:
             pref_label = first(
                 row.get(f"{role}_pref_label"), short_label(row.get(role))
             )
-            alt_label = first(row.get(role))
+            alt_label = meaningful_alt_label(row.get(role), pref_label)
             if pref_label:
                 labels["pref"].append(pref_label)
             if alt_label:
@@ -290,7 +306,7 @@ def collapse_combined_entity_labels(triplet_rows: list[dict[str, str]]) -> None:
     selected_labels = {
         entity: {
             "pref": choose_label_variant(labels["pref"]),
-            "alt": choose_label_variant(labels["alt"]),
+            "alt": "",
         }
         for entity, labels in labels_by_entity.items()
     }
@@ -302,7 +318,14 @@ def collapse_combined_entity_labels(triplet_rows: list[dict[str, str]]) -> None:
             if not selected:
                 continue
             row[f"{role}_pref_label"] = selected["pref"]
-            row[role] = selected["alt"]
+            row[f"{role}_alt_label"] = meaningful_alt_label(
+                row.get(role), selected["pref"]
+            )
+
+
+def collapse_combined_entity_labels(triplet_rows: list[dict[str, str]]) -> None:
+    """Backward-compatible name for callers using the combined pipeline."""
+    collapse_entity_labels(triplet_rows)
 
 
 def as_int(value: Any) -> int | None:
@@ -653,6 +676,7 @@ def rml_source_files(config: ProviderConfig, results_csv: Path) -> RmlSourceFile
     stem = results_csv.stem
     return RmlSourceFiles(
         documents=source_dir / f"{stem}_documents_rml.csv",
+        topics=source_dir / f"{stem}_topics_rml.csv",
         triplets=source_dir / f"{stem}_legal_triplets_rml.csv",
         mentions=source_dir / f"{stem}_legal_mentions_rml.csv",
     )
@@ -714,6 +738,52 @@ def create_document_rml_source(
     columns = list(filtered_rows[0].keys()) if filtered_rows else []
     write_csv(output_csv, filtered_rows, columns)
     return len(filtered_rows)
+
+
+def create_topic_rml_source(
+    input_corpus: Path,
+    output_csv: Path,
+    included_source_row_ids: set[int] | None = None,
+) -> int:
+    rows = read_csv(input_corpus)
+    topic_rows: list[dict[str, str]] = []
+    for source_row_id, row in enumerate(rows):
+        if (
+            included_source_row_ids is not None
+            and source_row_id not in included_source_row_ids
+        ):
+            continue
+        number = article_number(row, {}, first(row.get("content")))
+        article_key_value = article_key(
+            first(row.get("id")), number, str(source_row_id)
+        )
+        article_uri_value = article_uri(document_key(row, {}), article_key_value)
+        raw_topics = row.get("domain", "")
+        try:
+            topics = (
+                ast.literal_eval(raw_topics)
+                if raw_topics.strip().startswith("[")
+                else [raw_topics]
+            )
+        except (SyntaxError, ValueError):
+            topics = [raw_topics]
+        for topic in topics if isinstance(topics, list) else [topics]:
+            label = normalized_text(topic)
+            if not label:
+                continue
+            topic_rows.append(
+                {
+                    "article_uri": article_uri_value,
+                    "topic_label": label,
+                    "topic_slug": slugify_topic(label),
+                }
+            )
+    write_csv(output_csv, topic_rows, ["article_uri", "topic_label", "topic_slug"])
+    return len(topic_rows)
+
+
+def slugify_topic(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", folded_text(value)).strip("-")
 
 
 def filtered_source_row_ids(
@@ -828,6 +898,7 @@ def create_triplet_and_mention_rml_sources(
                     "triplet_index": triplet_index,
                     "head": head,
                     "head_pref_label": short_label(head),
+                    "head_alt_label": meaningful_alt_label(head, short_label(head)),
                     "head_resolution_mode": head_resolution_mode,
                     "head_resolved_entity_id": head_resolved_id,
                     "head_uri": head_uri,
@@ -839,6 +910,7 @@ def create_triplet_and_mention_rml_sources(
                     "relation_iri": lookup_iri(relation, relation_iris, SEMLEGM_NS),
                     "tail": tail,
                     "tail_pref_label": short_label(tail),
+                    "tail_alt_label": meaningful_alt_label(tail, short_label(tail)),
                     "tail_resolution_mode": tail_resolution_mode,
                     "tail_resolved_entity_id": tail_resolved_id,
                     "tail_uri": tail_uri,
@@ -895,8 +967,7 @@ def create_triplet_and_mention_rml_sources(
                     }
                 )
 
-    if config.provider == COMBINED_PROVIDER:
-        collapse_combined_entity_labels(triplet_rows)
+    collapse_entity_labels(triplet_rows)
     write_csv(triplets_csv, triplet_rows, TRIPLET_RML_COLUMNS)
     write_csv(mentions_csv, mention_rows, MENTION_RML_COLUMNS)
     return len(triplet_rows), len(mention_rows)
@@ -910,6 +981,7 @@ def patch_mapping_sources(config: ProviderConfig, sources: RmlSourceFiles) -> No
         "RawLegalDocumentSource": sources.documents,
         "NormalizedTripletSource": sources.triplets,
         "NormalizedMentionSource": sources.mentions,
+        "ArticleTopicSource": sources.topics,
     }
     for source_name, source_path in replacements.items():
         text = re.sub(
@@ -934,8 +1006,6 @@ def patch_mapping_sources(config: ProviderConfig, sources: RmlSourceFiles) -> No
         text,
         count=1,
     )
-    text = text.replace('rml:reference "head_alt_label"', 'rml:reference "head"')
-    text = text.replace('rml:reference "tail_alt_label"', 'rml:reference "tail"')
     if config.provider == COMBINED_PROVIDER:
         text = patch_combined_mapping_text(text)
     mapping_path.write_text(text, encoding="utf-8")
@@ -952,6 +1022,7 @@ def prepare_rml_sources(
     sources = rml_source_files(config, results_csv)
     print("\n== Prepare generated RML CSV sources ==")
     print(f"Documents: {sources.documents}")
+    print(f"Topics:    {sources.topics}")
     print(f"Triplets:  {sources.triplets}")
     print(f"Mentions:  {sources.mentions}")
     print(f"Patch mapping: {config.rml_mapping}")
@@ -962,6 +1033,11 @@ def prepare_rml_sources(
     document_count = create_document_rml_source(
         input_corpus,
         sources.documents,
+        included_source_row_ids=included_source_row_ids,
+    )
+    topic_count = create_topic_rml_source(
+        input_corpus,
+        sources.topics,
         included_source_row_ids=included_source_row_ids,
     )
     triplet_count, mention_count = create_triplet_and_mention_rml_sources(
@@ -975,6 +1051,7 @@ def prepare_rml_sources(
     )
     patch_mapping_sources(config, sources)
     print(f"Documents: {document_count}")
+    print(f"Topics: {topic_count}")
     print(f"Triplets: {triplet_count}")
     print(f"Mentions: {mention_count}")
 
