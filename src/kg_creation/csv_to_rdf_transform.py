@@ -41,6 +41,7 @@ DEFAULT_RELATION_SIMILARITY_THRESHOLD = 0.7
 DEFAULT_RELATION_CANONICAL_STRATEGY = "ontology-aware"
 DEFAULT_FILTER_STRATEGY = "article"
 DEFAULT_TOPIC_FILTER = "all"
+DEFAULT_CURATION = Path("src/data/arrete_curation_decisions.json")
 PIPELINE_STAGES = (
     "build-rules",
     "merge",
@@ -140,6 +141,7 @@ class ProviderConfig:
 class RmlSourceFiles:
     documents: Path
     topics: Path
+    curation: Path
     triplets: Path
     mentions: Path
 
@@ -240,14 +242,6 @@ def folded_text(value: Any) -> str:
     return re.sub(r"[^a-z0-9]+", " ", text).strip()
 
 
-def short_label(value: Any, max_chars: int = 50) -> str:
-    text = normalized_text(value)
-    if len(text) <= max_chars:
-        return text
-    cut = text[:max_chars].rsplit(" ", 1)[0].strip()
-    return cut or text[:max_chars].strip()
-
-
 def meaningful_alt_label(value: Any, pref_label: Any) -> str:
     """Keep aliases, but discard the full label and its truncation."""
     label = normalized_text(value)
@@ -295,7 +289,7 @@ def collapse_entity_labels(triplet_rows: list[dict[str, str]]) -> None:
                 continue
             labels = labels_by_entity.setdefault(entity, {"pref": [], "alt": []})
             pref_label = first(
-                row.get(f"{role}_pref_label"), short_label(row.get(role))
+                row.get(f"{role}_pref_label"), normalized_text(row.get(role))
             )
             alt_label = meaningful_alt_label(row.get(role), pref_label)
             if pref_label:
@@ -677,6 +671,7 @@ def rml_source_files(config: ProviderConfig, results_csv: Path) -> RmlSourceFile
     return RmlSourceFiles(
         documents=source_dir / f"{stem}_documents_rml.csv",
         topics=source_dir / f"{stem}_topics_rml.csv",
+        curation=Path("src/output/rml/curation_rml.csv"),
         triplets=source_dir / f"{stem}_legal_triplets_rml.csv",
         mentions=source_dir / f"{stem}_legal_mentions_rml.csv",
     )
@@ -740,10 +735,57 @@ def create_document_rml_source(
     return len(filtered_rows)
 
 
+def create_curation_rml_source(
+    input_corpus: Path,
+    output_csv: Path,
+    included_source_row_ids: set[int] | None = None,
+) -> set[str]:
+    data = json.loads((REPO_ROOT / DEFAULT_CURATION).read_text(encoding="utf-8"))
+    decisions = data.get("decisions", [])
+    corpus_rows = read_csv(input_corpus)
+    allowed_documents = {
+        f"{INSTANCE_NS}/document/{document_key(row, {})}"
+        for source_row_id, row in enumerate(corpus_rows)
+        if included_source_row_ids is None or source_row_id in included_source_row_ids
+    }
+    validated: set[str] = set()
+    rows: list[dict[str, str]] = []
+    for decision in decisions:
+        target_data = decision.get("target", {})
+        target = first(decision.get("oa:hasTarget"), decision.get("target_uri"), target_data.get("uri") if isinstance(target_data, dict) else "")
+        status = first(decision.get("oa:hasBody"), decision.get("status"))
+        if not target or not status:
+            continue
+        if target not in allowed_documents:
+            continue
+        is_validated = status.endswith("ValidatedForMaintenance")
+        if is_validated:
+            validated.add(target)
+        rows.append({
+            "decision_uri": f"{INSTANCE_NS}/{first(decision.get('decision_id'), decision.get('id'))}",
+            "target_uri": target,
+            "status_uri": f"{INSTANCE_NS}/{status.removeprefix('inst:')}",
+            "status_label": "Validated for maintenance" if is_validated else "Not selected for maintenance",
+            "status_definition": "The legal document has been reviewed and validated as relevant to the maintenance corpus." if is_validated else "The document was considered as a candidate and excluded after the relevant arrêté for the maintenance corpus had been selected.",
+            "motivation_uri": "http://www.w3.org/ns/oa#classifying",
+            "activity_uri": f"{INSTANCE_NS}/maintenanceCurationActivity-Dis_arretes_full_corrected",
+            "source_uri": f"{INSTANCE_NS}/Dis_arretes_full_corrected",
+            "dataset_uri": f"{INSTANCE_NS}/maintenanceCorpus",
+            "activity_label": "Maintenance corpus curation",
+            "activity_comment": "Activity that classifies legal documents according to their selection for the maintenance corpus.",
+            "started_at": "2026-10-05T00:00:00Z",
+            "ended_at": "2026-11-09T23:59:59Z",
+            "source_title": "Corrected Arrêté curation decisions",
+        })
+    write_csv(output_csv, rows, list(rows[0]) if rows else ["decision_uri"])
+    return validated
+
+
 def create_topic_rml_source(
     input_corpus: Path,
     output_csv: Path,
     included_source_row_ids: set[int] | None = None,
+    validated_documents: set[str] | None = None,
 ) -> int:
     rows = read_csv(input_corpus)
     topic_rows: list[dict[str, str]] = []
@@ -758,6 +800,12 @@ def create_topic_rml_source(
             first(row.get("id")), number, str(source_row_id)
         )
         article_uri_value = article_uri(document_key(row, {}), article_key_value)
+        document_type = folded_text(row.get("type"))
+        is_arrete = document_type in {"arrete", "arretes"}
+        if validated_documents is not None and is_arrete:
+            document_uri_value = f"{INSTANCE_NS}/document/{document_key(row, {})}"
+            if document_uri_value not in validated_documents:
+                continue
         raw_topics = row.get("domain", "")
         try:
             topics = (
@@ -897,8 +945,8 @@ def create_triplet_and_mention_rml_sources(
                     ),
                     "triplet_index": triplet_index,
                     "head": head,
-                    "head_pref_label": short_label(head),
-                    "head_alt_label": meaningful_alt_label(head, short_label(head)),
+                    "head_pref_label": normalized_text(head),
+                    "head_alt_label": meaningful_alt_label(head, normalized_text(head)),
                     "head_resolution_mode": head_resolution_mode,
                     "head_resolved_entity_id": head_resolved_id,
                     "head_uri": head_uri,
@@ -909,8 +957,8 @@ def create_triplet_and_mention_rml_sources(
                     "relation": relation,
                     "relation_iri": lookup_iri(relation, relation_iris, SEMLEGM_NS),
                     "tail": tail,
-                    "tail_pref_label": short_label(tail),
-                    "tail_alt_label": meaningful_alt_label(tail, short_label(tail)),
+                    "tail_pref_label": normalized_text(tail),
+                    "tail_alt_label": meaningful_alt_label(tail, normalized_text(tail)),
                     "tail_resolution_mode": tail_resolution_mode,
                     "tail_resolved_entity_id": tail_resolved_id,
                     "tail_uri": tail_uri,
@@ -982,6 +1030,7 @@ def patch_mapping_sources(config: ProviderConfig, sources: RmlSourceFiles) -> No
         "NormalizedTripletSource": sources.triplets,
         "NormalizedMentionSource": sources.mentions,
         "ArticleTopicSource": sources.topics,
+        "CurationSource": sources.curation,
     }
     for source_name, source_path in replacements.items():
         text = re.sub(
@@ -1023,6 +1072,7 @@ def prepare_rml_sources(
     print("\n== Prepare generated RML CSV sources ==")
     print(f"Documents: {sources.documents}")
     print(f"Topics:    {sources.topics}")
+    print(f"Curation:  {sources.curation}")
     print(f"Triplets:  {sources.triplets}")
     print(f"Mentions:  {sources.mentions}")
     print(f"Patch mapping: {config.rml_mapping}")
@@ -1039,6 +1089,11 @@ def prepare_rml_sources(
         input_corpus,
         sources.topics,
         included_source_row_ids=included_source_row_ids,
+        validated_documents=create_curation_rml_source(
+            input_corpus,
+            sources.curation,
+            included_source_row_ids=included_source_row_ids,
+        ),
     )
     triplet_count, mention_count = create_triplet_and_mention_rml_sources(
         config=config,

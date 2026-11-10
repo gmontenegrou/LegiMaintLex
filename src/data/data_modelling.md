@@ -163,3 +163,81 @@ The knowledge graph construction process is represented as a PROV-O activity. Th
 * Resources used (prov:used): references to the dataset and generator used during the KG creation process.
 * Upstream extraction activities (prov:wasInformedBy): links the KG creation activity to the extraction activities that provided its inputs, including entity mention extraction and relation extraction runs.
 
+## Document Curation Annotation: Maintenance Corpus Selection
+
+The selection of legal documents for the maintenance corpus is represented as
+a document-level classification annotation. This classification is a property
+of the corpus curation process, not an intrinsic legal property of the arrêté.
+
+Only two curation statuses are represented in the published KG:
+
+* `inst:ValidatedForMaintenance`: the document has been reviewed and selected
+  as relevant to the maintenance corpus.
+* `inst:NotSelectedForMaintenance`: the document was considered as a candidate
+  and excluded after the relevant arrêté for the maintenance corpus had been
+  selected.
+
+### Curation Status Concepts
+
+The statuses are represented as SKOS concepts with English labels and
+definitions:
+
+```
+inst:ValidatedForMaintenance a skos:Concept ;
+    skos:prefLabel "Validated for maintenance"@en ;
+    skos:definition
+        "The legal document has been reviewed and validated as relevant to the maintenance corpus."@en .
+
+inst:NotSelectedForMaintenance a skos:Concept ;
+    skos:prefLabel "Not selected for maintenance"@en ;
+    skos:definition
+        "The document was considered as a candidate and excluded after the relevant arrêté for the maintenance corpus had been selected."@en .
+```
+
+### Curation Annotation
+
+Each curation decision is represented as an `oa:Annotation` targeting the
+document resource. The annotation links the document to one status concept
+and to the shared PROV activity that generated the decision.
+
+* Annotation type (`rdf:type oa:Annotation`): identifies a curation decision.
+* Document target (`oa:hasTarget`): URI of the `eli:LegalResource` being classified.
+* Curation status (`oa:hasBody`): one of the two status concepts above.
+* Classification motivation (`oa:motivatedBy oa:classifying`): indicates that the annotation classifies the target document.
+* Curation activity (`prov:wasGeneratedBy`): shared activity or batch that produced the decision.
+* Primary decision source (`prov:hadPrimarySource`): validation file or dataset used to make the decision.
+* Maintenance dataset (`dcterms:source`): optional reference to the corpus to which the classification applies.
+
+Example:
+
+```
+inst:curationDecision-<document-id>
+    a oa:Annotation ;
+    oa:hasTarget <https://w3id.org/semleg/legimaintlex/resource/document/<document-key>> ;
+    oa:hasBody inst:ValidatedForMaintenance ;
+    oa:motivatedBy oa:classifying ;
+    prov:wasGeneratedBy inst:maintenanceCurationActivity-Dis_arretes_full_corrected ;
+    prov:hadPrimarySource inst:Dis_arretes_full_corrected ;
+    dcterms:source inst:maintenanceCorpus .
+```
+
+### Curation Activity
+
+The curation activity is shared by all decisions generated from the same
+validation batch. It is not duplicated for every document. Temporal metadata
+belongs to the activity rather than to each annotation.
+
+```
+inst:maintenanceCurationActivity-Dis_arretes_full_corrected
+    a prov:Activity ;
+    rdfs:label "Maintenance corpus curation"@en ;
+    rdfs:comment
+        "Activity that classifies legal documents according to their selection for the maintenance corpus."@en ;
+    prov:used inst:Dis_arretes_full_corrected ;
+    prov:startedAtTime "2026-10-05T00:00:00Z"^^xsd:dateTime ;
+    prov:endedAtTime "2026-11-09T23:59:59Z"^^xsd:dateTime .
+
+inst:Dis_arretes_full_corrected
+    a prov:Entity ;
+    dcterms:title "Corrected Arrêté curation decisions"@en .
+```

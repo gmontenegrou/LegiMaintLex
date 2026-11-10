@@ -23,6 +23,10 @@ map:ArticleTopicSource
     rml:source "src/data/article_topics_rml.csv" ;
     rml:referenceFormulation ql:CSV .
 
+map:CurationSource
+    rml:source "src/data/curation_rml.csv" ;
+    rml:referenceFormulation ql:CSV .
+
 map:NormalizedTripletSource
     rml:source "src/output/rml/legal_triplets_normalized.csv" ;
     rml:referenceFormulation ql:CSV .
@@ -126,6 +130,40 @@ map:TopicConceptTriplesMap
             rr:language "fr"
         ]
     ] .
+
+map:CurationAnnotationTriplesMap
+    a rr:TriplesMap ;
+    rml:logicalSource map:CurationSource ;
+    rr:subjectMap [ rml:reference "decision_uri" ; rr:termType rr:IRI ; rr:class oa:Annotation ] ;
+    rr:predicateObjectMap [ rr:predicate oa:hasTarget ; rr:objectMap [ rml:reference "target_uri" ; rr:termType rr:IRI ] ] ;
+    rr:predicateObjectMap [ rr:predicate oa:hasBody ; rr:objectMap [ rml:reference "status_uri" ; rr:termType rr:IRI ] ] ;
+    rr:predicateObjectMap [ rr:predicate oa:motivatedBy ; rr:objectMap [ rml:reference "motivation_uri" ; rr:termType rr:IRI ] ] ;
+    rr:predicateObjectMap [ rr:predicate prov:wasGeneratedBy ; rr:objectMap [ rml:reference "activity_uri" ; rr:termType rr:IRI ] ] ;
+    rr:predicateObjectMap [ rr:predicate prov:hadPrimarySource ; rr:objectMap [ rml:reference "source_uri" ; rr:termType rr:IRI ] ] ;
+    rr:predicateObjectMap [ rr:predicate dcterms:source ; rr:objectMap [ rml:reference "dataset_uri" ; rr:termType rr:IRI ] ] .
+
+map:CurationStatusTriplesMap
+    a rr:TriplesMap ;
+    rml:logicalSource map:CurationSource ;
+    rr:subjectMap [ rml:reference "status_uri" ; rr:termType rr:IRI ; rr:class skos:Concept ] ;
+    rr:predicateObjectMap [ rr:predicate skos:prefLabel ; rr:objectMap [ rml:reference "status_label" ; rr:language "en" ] ] ;
+    rr:predicateObjectMap [ rr:predicate skos:definition ; rr:objectMap [ rml:reference "status_definition" ; rr:language "en" ] ] .
+
+map:CurationActivityTriplesMap
+    a rr:TriplesMap ;
+    rml:logicalSource map:CurationSource ;
+    rr:subjectMap [ rml:reference "activity_uri" ; rr:termType rr:IRI ; rr:class prov:Activity ] ;
+    rr:predicateObjectMap [ rr:predicate rdfs:label ; rr:objectMap [ rml:reference "activity_label" ; rr:language "en" ] ] ;
+    rr:predicateObjectMap [ rr:predicate rdfs:comment ; rr:objectMap [ rml:reference "activity_comment" ; rr:language "en" ] ] ;
+    rr:predicateObjectMap [ rr:predicate prov:used ; rr:objectMap [ rml:reference "source_uri" ; rr:termType rr:IRI ] ] ;
+    rr:predicateObjectMap [ rr:predicate prov:startedAtTime ; rr:objectMap [ rml:reference "started_at" ; rr:datatype xsd:dateTime ] ] ;
+    rr:predicateObjectMap [ rr:predicate prov:endedAtTime ; rr:objectMap [ rml:reference "ended_at" ; rr:datatype xsd:dateTime ] ] .
+
+map:CurationSourceEntityTriplesMap
+    a rr:TriplesMap ;
+    rml:logicalSource map:CurationSource ;
+    rr:subjectMap [ rml:reference "source_uri" ; rr:termType rr:IRI ; rr:class prov:Entity ] ;
+    rr:predicateObjectMap [ rr:predicate dcterms:title ; rr:objectMap [ rml:reference "source_title" ; rr:language "en" ] ] .
 
 map:ContentAsTextTriplesMap
     a rr:TriplesMap ;
