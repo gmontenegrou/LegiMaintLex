@@ -287,6 +287,10 @@ def collapse_entity_labels(triplet_rows: list[dict[str, str]]) -> None:
             entity = row.get(f"{role}_uri", "")
             if not entity:
                 continue
+            if row.get(f"{role}_resolution_mode") == "current_legal_act":
+                # Do not turn an anaphoric mention into the document's
+                # skos:prefLabel (e.g. "le présent arrêté").
+                continue
             labels = labels_by_entity.setdefault(entity, {"pref": [], "alt": []})
             pref_label = first(
                 row.get(f"{role}_pref_label"), normalized_text(row.get(role))
@@ -553,6 +557,12 @@ def clip_segments(
     ]
 
 
+FRENCH_DETERMINANTS = (
+    "le", "la", "les", "l'", "un", "une", "des", "du", "de la", "de l'",
+    "de", "au", "aux", "à la", "à l'", "ce", "cet", "cette", "ces",
+)
+
+
 def infer_segment(content: str, mention: str) -> list[tuple[int, int]]:
     if not mention:
         return []
@@ -560,7 +570,36 @@ def infer_segment(content: str, mention: str) -> list[tuple[int, int]]:
     if start >= 0:
         return [(start, start + len(mention))]
     match = re.search(re.escape(mention), content, flags=re.IGNORECASE)
-    return [(match.start(), match.end())] if match else []
+    if match:
+        return [(match.start(), match.end())]
+
+    # The extractor can omit the article: "les lieux" vs "des lieux".
+    # Return the span from the source text, including its actual determiner.
+    first_word = re.match(
+        r"(?i)(le|la|les|l'|un|une|des|du|de|au|aux|ce|cet|cette|ces)\s+",
+        mention,
+    )
+    if first_word:
+        remainder = mention[first_word.end():]
+        determiners = "|".join(re.escape(item) for item in FRENCH_DETERMINANTS)
+        remainder_words = remainder.split()
+        if remainder_words:
+            # Accommodate singular/plural mismatches such as
+            # "le poste de travail" vs "des postes de travail".
+            remainder_pattern = r"\s+".join(
+                word if word.endswith("s") else f"{word}s?"
+                for word in (re.escape(item) for item in remainder_words)
+            )
+        else:
+            remainder_pattern = re.escape(remainder)
+        match = re.search(
+            rf"\b(?:{determiners})\s+{remainder_pattern}",
+            content,
+            flags=re.IGNORECASE,
+        )
+        if match:
+            return [(match.start(), match.end())]
+    return []
 
 
 def side_segments(
@@ -762,7 +801,10 @@ def create_curation_rml_source(
         if is_validated:
             validated.add(target)
         rows.append({
-            "decision_uri": f"{INSTANCE_NS}/{first(decision.get('decision_id'), decision.get('id'))}",
+            "decision_uri": (
+                f"{INSTANCE_NS}/curation/"
+                f"{iri_part(first(decision.get('decision_id'), decision.get('id')))}"
+            ),
             "target_uri": target,
             "status_uri": f"{INSTANCE_NS}/{status.removeprefix('inst:')}",
             "status_label": "Validated for maintenance" if is_validated else "Not selected for maintenance",
@@ -926,6 +968,11 @@ def create_triplet_and_mention_rml_sources(
                 tail_type,
                 doc_key,
             )
+            # A current-legal-act reference such as "le présent arrêté" points
+            # to the document URI, but is not the document's preferred label.
+            # Its canonical label is emitted from document metadata instead.
+            head_pref_label = "" if head_resolution_mode == "current_legal_act" else normalized_text(head)
+            tail_pref_label = "" if tail_resolution_mode == "current_legal_act" else normalized_text(tail)
 
             triplet_rows.append(
                 {
@@ -945,8 +992,8 @@ def create_triplet_and_mention_rml_sources(
                     ),
                     "triplet_index": triplet_index,
                     "head": head,
-                    "head_pref_label": normalized_text(head),
-                    "head_alt_label": meaningful_alt_label(head, normalized_text(head)),
+                    "head_pref_label": head_pref_label,
+                    "head_alt_label": meaningful_alt_label(head, head_pref_label),
                     "head_resolution_mode": head_resolution_mode,
                     "head_resolved_entity_id": head_resolved_id,
                     "head_uri": head_uri,
@@ -957,8 +1004,8 @@ def create_triplet_and_mention_rml_sources(
                     "relation": relation,
                     "relation_iri": lookup_iri(relation, relation_iris, SEMLEGM_NS),
                     "tail": tail,
-                    "tail_pref_label": normalized_text(tail),
-                    "tail_alt_label": meaningful_alt_label(tail, normalized_text(tail)),
+                    "tail_pref_label": tail_pref_label,
+                    "tail_alt_label": meaningful_alt_label(tail, tail_pref_label),
                     "tail_resolution_mode": tail_resolution_mode,
                     "tail_resolved_entity_id": tail_resolved_id,
                     "tail_uri": tail_uri,

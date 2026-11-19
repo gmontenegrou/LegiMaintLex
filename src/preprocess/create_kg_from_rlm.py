@@ -207,6 +207,10 @@ def run_lite_rml(
 
     output_graph = Graph()
     for prefix, namespace in mapping_graph.namespaces():
+        # Keep internal mapping prefixes out of the serialized KG. Resource
+        # URIs should be emitted in full rather than as inst: or cur: names.
+        if prefix in {"inst", "cur"}:
+            continue
         output_graph.bind(prefix, namespace)
 
     source_cache: dict[Any, list[dict[str, str]]] = {}
