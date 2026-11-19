@@ -2,6 +2,8 @@
 @prefix oa: <http://www.w3.org/ns/oa#> .
 @prefix prov: <http://www.w3.org/ns/prov#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix semleg: <https://w3id.org/semleg#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 <https://w3id.org/semleg/legimaintlex/resource/article/0/mention/M1> a oa:Annotation ;
@@ -595,6 +597,352 @@
                     oa:start 64 ] ;
             oa:hasSource <https://w3id.org/semleg/legimaintlex/resource/article/9> ] ;
     prov:wasGeneratedBy inst:mentionExtractionActivity_viz_sample .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/action/acc-der-ces-lieux> a skos:Concept,
+        prov:Entity,
+        semleg:Action ;
+    skos:prefLabel "accéder à ces lieux"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/action/communique> a skos:Concept,
+        prov:Entity,
+        semleg:Action ;
+    skos:prefLabel "communique"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/action/examiner-les-d-clarations-de-substances-nouvelles> a skos:Concept,
+        prov:Entity,
+        semleg:Action ;
+    skos:prefLabel "examiner les déclarations de substances nouvelles"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/action/la-gestion-des-activit-s-des-charg-s-de-client-le-de-la-direction-des-activit-s-bancaires-et-financi-res-de-la-caisse-de> a skos:Concept,
+        prov:Entity,
+        semleg:Action ;
+    skos:prefLabel "la gestion des activités des chargés de clientèle de la direction des activités bancaires et financières de la Caisse des dépôts et consignations"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/action/le-droit-d-acc-s-pr-vu-par-l-article-34-de-la-loi-du-6-janvier-1978> a skos:Concept,
+        prov:Entity,
+        semleg:Action ;
+    skos:prefLabel "Le droit d'accès prévu par l'article 34 de la loi du 6 janvier 1978"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/action/les-vacuer> a skos:Concept,
+        prov:Entity,
+        semleg:Action ;
+    skos:prefLabel "les évacuer"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/action/se-rep-rer> a skos:Concept,
+        prov:Entity,
+        semleg:Action ;
+    skos:prefLabel "se repérer"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/action/y-circuler> a skos:Concept,
+        prov:Entity,
+        semleg:Action ;
+    skos:prefLabel "y circuler"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/actor/la-caisse-des-d-p-ts-et-consignations> a skos:Concept,
+        prov:Entity,
+        semleg:Actor ;
+    skos:prefLabel "la Caisse des dépôts et consignations"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/actor/la-direction-des-activit-s-bancaires-et-financi-res-d-a-b-f> a skos:Concept,
+        prov:Entity,
+        semleg:Actor ;
+    skos:prefLabel "la direction des activités bancaires et financières (D.A.B.F.)"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/actor/le-propri-taire> a skos:Concept,
+        prov:Entity,
+        semleg:Actor ;
+    skos:prefLabel "le propriétaire"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/actor/le-service-de-l-action-commerciale-f-a-c-de-la-direction-des-activit-s-bancaires-et-financi-res-d-a-b-f-de-la-caisse-des> a skos:Concept,
+        prov:Entity,
+        semleg:Actor ;
+    skos:prefLabel "le service de l'action commerciale (F.A.C.) de la direction des activités bancaires et financières (D.A.B.F.) de la Caisse des dépôts et consignations"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/actor/les-destinataires-de-ces-informations> a skos:Concept,
+        prov:Entity,
+        semleg:Actor ;
+    skos:prefLabel "les destinataires de ces informations"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/actor/les-ministres-charg-s-du-travail-de-l-agriculture-et-de-la-construction> a skos:Concept,
+        prov:Entity,
+        semleg:Actor ;
+    skos:prefLabel "les ministres chargés du travail, de l'agriculture et de la construction"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/actor/les-personnes-contact-es-pour-les-informations-les-concernant> a skos:Concept,
+        prov:Entity,
+        semleg:Actor ;
+    skos:prefLabel "les personnes contactées pour les informations les concernant"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/artifact/cat-gories-d-informations-nominatives> a skos:Concept,
+        prov:Entity,
+        semleg:Artifact ;
+    skos:prefLabel "catégories d'informations nominatives"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/artifact/d-clarations-de-substances-nouvelles> a skos:Concept,
+        prov:Entity,
+        semleg:Artifact ;
+    skos:prefLabel "déclarations de substances nouvelles"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/artifact/fonctions> a skos:Concept,
+        prov:Entity,
+        semleg:Artifact ;
+    skos:prefLabel "fonctions"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/artifact/identit> a skos:Concept,
+        prov:Entity,
+        semleg:Artifact ;
+    skos:prefLabel "Identité"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/artifact/les-acc-s-portes-d-gagements-et-ascenseurs> a skos:Concept,
+        prov:Entity,
+        semleg:Artifact ;
+    skos:prefLabel "Les accès, portes, dégagements et ascenseurs"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/artifact/les-dispositions-architecturales-les-am-nagements-et-quipements-int-rieurs-et-ext-rieurs> a skos:Concept,
+        prov:Entity,
+        semleg:Artifact ;
+    skos:prefLabel "Les dispositions architecturales, les aménagements et équipements intérieurs et extérieurs"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/artifact/les-installations-ouvertes-au-public> a skos:Concept,
+        prov:Entity,
+        semleg:Artifact ;
+    skos:prefLabel "les installations ouvertes au public"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/artifact/les-lieux-de-travail-y-compris-les-locaux-annexes-am-nag-s-dans-un-b-timent-neuf-ou-dans-la-partie-neuve-d-un-b-timent-e> a skos:Concept,
+        prov:Entity,
+        semleg:Artifact ;
+    skos:prefLabel "Les lieux de travail, y compris les locaux annexes, aménagés dans un bâtiment neuf ou dans la partie neuve d'un bâtiment existant"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/artifact/les-rev-tements-des-sols-et-des-parois> a skos:Concept,
+        prov:Entity,
+        semleg:Artifact ;
+    skos:prefLabel "les revêtements des sols et des parois"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/artifact/les-tablissements-recevant-du-public> a skos:Concept,
+        prov:Entity,
+        semleg:Artifact ;
+    skos:prefLabel "Les établissements recevant du public"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/artifact/nom> a skos:Concept,
+        prov:Entity,
+        semleg:Artifact ;
+    skos:prefLabel "nom"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/artifact/num-ro-d-identification-donn-par-le-service> a skos:Concept,
+        prov:Entity,
+        semleg:Artifact ;
+    skos:prefLabel "numéro d'identification donné par le service"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/artifact/num-ros-de-t-l-phone-et-de-t-l-copie-professionnels> a skos:Concept,
+        prov:Entity,
+        semleg:Artifact ;
+    skos:prefLabel "numéros de téléphone et de télécopie professionnels"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/artifact/pr-noms> a skos:Concept,
+        prov:Entity,
+        semleg:Artifact ;
+    skos:prefLabel "prénoms"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/artifact/s-g-c> a skos:Concept,
+        prov:Entity,
+        semleg:Artifact ;
+    skos:prefLabel "S.G.C."^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/artifact/service> a skos:Concept,
+        prov:Entity,
+        semleg:Artifact ;
+    skos:prefLabel "service"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/artifact/stationnement-automobile> a skos:Concept,
+        prov:Entity,
+        semleg:Artifact ;
+    skos:prefLabel "stationnement automobile"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/artifact/un-traitement-automatis-d-informations-nominatives> a skos:Concept,
+        prov:Entity,
+        semleg:Artifact ;
+    skos:prefLabel "un traitement automatisé d'informations nominatives"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/artifact/vie-professionnelle> a skos:Concept,
+        prov:Entity,
+        semleg:Artifact ;
+    skos:prefLabel "Vie professionnelle"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/condition/accessibles-aux-personnes-handicap-es-quel-que-soit-leur-type-de-handicap> a skos:Concept,
+        prov:Entity,
+        semleg:Condition ;
+    skos:prefLabel "accessibles aux personnes handicapées, quel que soit leur type de handicap"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/condition/con-us-de-mani-re-permettre-l-adaptation-des-postes-de-travail-aux-personnes-handicap-es> a skos:Concept,
+        prov:Entity,
+        semleg:Condition ;
+    skos:prefLabel "conçus de manière à permettre l'adaptation des postes de travail aux personnes handicapées"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/condition/la-d-termination-de-leur-capacit-d-accueil> a skos:Concept,
+        prov:Entity,
+        semleg:Condition ;
+    skos:prefLabel "la détermination de leur capacité d'accueil"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/condition/la-protection-pr-vue-au-deuxi-me-alin-a-de-l-article-r-4216-2-1> a skos:Concept,
+        prov:Entity,
+        semleg:Condition ;
+    skos:prefLabel "la protection prévue au deuxième alinéa de l'article R. 4216-2-1"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/condition/les-caract-ristiques-des-espaces-d-attente-s-curis-s-et-de-leurs-quivalents> a skos:Concept,
+        prov:Entity,
+        semleg:Condition ;
+    skos:prefLabel "les caractéristiques des espaces d'attente sécurisés et de leurs équivalents"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/condition/les-modalit-s-d-application-propres-assurer-l-accessibilit-des-lieux-de-travail> a skos:Concept,
+        prov:Entity,
+        semleg:Condition ;
+    skos:prefLabel "les modalités d'application propres à assurer l'accessibilité des lieux de travail"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/condition/les-r-gles-qui-pr-sident-leur-implantation> a skos:Concept,
+        prov:Entity,
+        semleg:Condition ;
+    skos:prefLabel "les règles qui président à leur implantation"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/condition/les-sp-cifications-techniques-auxquelles-ils-doivent-satisfaire> a skos:Concept,
+        prov:Entity,
+        semleg:Condition ;
+    skos:prefLabel "les spécifications techniques auxquelles ils doivent satisfaire"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/location/280-boulevard-saint-germain-75007-paris> a skos:Concept,
+        prov:Entity,
+        semleg:Location ;
+    skos:prefLabel "280, boulevard Saint-Germain, 75007 Paris"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/location/la-caisse-des-d-p-ts-et-consignations> a skos:Concept,
+        prov:Entity,
+        semleg:Location ;
+    skos:prefLabel "la Caisse des dépôts et consignations"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/location/le-service-de-l-action-commerciale-f-a-c-de-la-direction-des-activit-s-bancaires-et-financi-res-d-a-b-f-de-la-caisse-des> a skos:Concept,
+        prov:Entity,
+        semleg:Location ;
+    skos:prefLabel "le service de l'action commerciale (F.A.C.) de la direction des activités bancaires et financières (D.A.B.F.) de la Caisse des dépôts et consignations"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/location/les-lieux-de-travail> a skos:Concept,
+        prov:Entity,
+        semleg:Location ;
+    skos:prefLabel "les lieux de travail"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/location/locaux-sanitaires-locaux-de-restauration-parcs-de-stationnement> a skos:Concept,
+        prov:Entity,
+        semleg:Location ;
+    skos:prefLabel "locaux sanitaires, locaux de restauration, parcs de stationnement"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/location/postes-de-travail-et-les-locaux-annexes> a skos:Concept,
+        prov:Entity,
+        semleg:Location ;
+    skos:prefLabel "postes de travail et les locaux annexes"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/modality/r-alis-ou-rendu-ult-rieurement-possible> a skos:Concept,
+        prov:Entity,
+        semleg:Modality ;
+    skos:prefLabel "réalisé ou rendu ultérieurement possible"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/reason/coordonner-l-activit-commerciale> a skos:Concept,
+        prov:Entity,
+        semleg:Reason ;
+    skos:prefLabel "coordonner l'activité commerciale"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/reason/donner-une-information-globale-sur-les-clients> a skos:Concept,
+        prov:Entity,
+        semleg:Reason ;
+    skos:prefLabel "donner une information globale sur les clients"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/reason/fournir-des-statistiques-par-famille-de-client-le> a skos:Concept,
+        prov:Entity,
+        semleg:Reason ;
+    skos:prefLabel "fournir des statistiques par famille de clientèle"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/reason/peuvent-faire-courir-des-risques-aux-travailleurs> a skos:Concept,
+        prov:Entity,
+        semleg:Reason ;
+    skos:prefLabel "peuvent faire courir des risques aux travailleurs"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/situation/celles-circulant-en-fauteuil-roulant> a skos:Concept,
+        prov:Entity,
+        semleg:Situation ;
+    skos:prefLabel "celles circulant en fauteuil roulant"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/source/art-2> a skos:Concept,
+        prov:Entity,
+        semleg:Source ;
+    skos:prefLabel "Art. 2"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/source/art-3> a skos:Concept,
+        prov:Entity,
+        semleg:Source ;
+    skos:prefLabel "Art. 3"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/source/article-r-231-60-du-code-du-travail> a skos:Concept,
+        prov:Entity,
+        semleg:Source ;
+    skos:prefLabel "article R. 231-60 du code du travail"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/source/articles-l-111-7-1-l-111-7-11> a skos:Concept,
+        prov:Entity,
+        semleg:Source ;
+    skos:prefLabel "articles L. 111-7-1 à L. 111-7-11"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/source/articles-l-231-7-et-r-231-52-du-code-du-travail> a skos:Concept,
+        prov:Entity,
+        semleg:Source ;
+    skos:prefLabel "articles L. 231-7 et R. 231-52 du code du travail"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/source/l-arr-t-du-14-ao-t-1979-relatif-l-agr-ment-de-l-institut-national-de-recherche-et-de-s-curit-au-titre-des-articles-l-231> a skos:Concept,
+        prov:Entity,
+        semleg:Source ;
+    skos:prefLabel "l'arrêté du 14 août 1979 relatif à l'agrément de l'Institut national de recherche et de sécurité au titre des articles L. 231-7 et R. 231-52 du code du travail"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/source/l-arr-t-du-14-ao-t-1979-relatif-la-d-signation-de-l-institut-national-de-recherche-et-de-s-curit-pour-exercer-les-missio> a skos:Concept,
+        prov:Entity,
+        semleg:Source ;
+    skos:prefLabel "l'arrêté du 14 août 1979 relatif à la désignation de l'Institut national de recherche et de sécurité pour exercer les missions prévues à l'article R. 231-60 du code du travail"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/source/l-article-34-de-la-loi-du-6-janvier-1978> a skos:Concept,
+        prov:Entity,
+        semleg:Source ;
+    skos:prefLabel "l'article 34 de la loi du 6 janvier 1978"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/source/l-article-l-231-7-3e-alin-a-du-code-du-travail> a skos:Concept,
+        prov:Entity,
+        semleg:Source ;
+    skos:prefLabel "l'article L. 231-7 (3e alinéa) du code du travail"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/source/le-deuxi-me-alin-a-de-l-article-r-4216-2-1> a skos:Concept,
+        prov:Entity,
+        semleg:Source ;
+    skos:prefLabel "le deuxième alinéa de l'article R. 4216-2-1"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/actor/l-institut-national-de-recherche-et-de-s-curit> a skos:Concept,
+        prov:Entity,
+        semleg:Actor ;
+    skos:prefLabel "l'Institut national de recherche et de sécurité"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/actor/les-charg-s-de-client-le-de-la-direction-des-activit-s-bancaires-et-financi-res> a skos:Concept,
+        prov:Entity,
+        semleg:Actor ;
+    skos:prefLabel "les chargés de clientèle de la direction des activités bancaires et financières"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/actor/les-personnes-handicap-es> a skos:Concept,
+        prov:Entity,
+        semleg:Actor ;
+    skos:prefLabel "les personnes handicapées"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/artifact/les-lieux-de-travail> a skos:Concept,
+        prov:Entity,
+        semleg:Artifact ;
+    skos:prefLabel "les lieux de travail"^^xsd:string .
+
+<https://w3id.org/semleg/legimaintlex/resource/entity/source/art-1er> a skos:Concept,
+        prov:Entity,
+        semleg:Source ;
+    skos:prefLabel "Art. 1er"^^xsd:string,
+        "Art. 1er."^^xsd:string .
 
 <https://w3id.org/semleg/legimaintlex/resource/article/6> rdfs:label "Document 6" .
 
