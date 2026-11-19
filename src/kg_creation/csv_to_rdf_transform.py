@@ -39,6 +39,9 @@ DEFAULT_MERGE_BATCH_SIZE = 128
 DEFAULT_ENTITY_SIMILARITY_THRESHOLD = 0.7
 DEFAULT_RELATION_SIMILARITY_THRESHOLD = 0.7
 DEFAULT_RELATION_CANONICAL_STRATEGY = "ontology-aware"
+DEFAULT_FILTER_STRATEGY = "article"
+DEFAULT_TOPIC_FILTER = "all"
+DEFAULT_CURATION = Path("src/data/arrete_curation_decisions.json")
 PIPELINE_STAGES = (
     "build-rules",
     "merge",
@@ -76,6 +79,7 @@ TRIPLET_RML_COLUMNS = [
     "triplet_index",
     "head",
     "head_pref_label",
+    "head_alt_label",
     "head_resolution_mode",
     "head_resolved_entity_id",
     "head_uri",
@@ -87,6 +91,7 @@ TRIPLET_RML_COLUMNS = [
     "relation_iri",
     "tail",
     "tail_pref_label",
+    "tail_alt_label",
     "tail_resolution_mode",
     "tail_resolved_entity_id",
     "tail_uri",
@@ -135,6 +140,8 @@ class ProviderConfig:
 @dataclass(frozen=True)
 class RmlSourceFiles:
     documents: Path
+    topics: Path
+    curation: Path
     triplets: Path
     mentions: Path
 
@@ -235,12 +242,17 @@ def folded_text(value: Any) -> str:
     return re.sub(r"[^a-z0-9]+", " ", text).strip()
 
 
-def short_label(value: Any, max_chars: int = 50) -> str:
-    text = normalized_text(value)
-    if len(text) <= max_chars:
-        return text
-    cut = text[:max_chars].rsplit(" ", 1)[0].strip()
-    return cut or text[:max_chars].strip()
+def meaningful_alt_label(value: Any, pref_label: Any) -> str:
+    """Keep aliases, but discard the full label and its truncation."""
+    label = normalized_text(value)
+    pref = normalized_text(pref_label)
+    if not label or not pref:
+        return ""
+    if label.casefold() == pref.casefold():
+        return ""
+    if label.casefold().startswith(pref.casefold()):
+        return ""
+    return label
 
 
 def label_sort_key(label: str, count: int) -> tuple[int, int, int, str]:
@@ -268,18 +280,22 @@ def choose_label_variant(labels: list[str]) -> str:
     return max(counts, key=lambda label: label_sort_key(label, counts[label]))
 
 
-def collapse_combined_entity_labels(triplet_rows: list[dict[str, str]]) -> None:
+def collapse_entity_labels(triplet_rows: list[dict[str, str]]) -> None:
     labels_by_entity: dict[str, dict[str, list[str]]] = {}
     for row in triplet_rows:
         for role in ("head", "tail"):
             entity = row.get(f"{role}_uri", "")
             if not entity:
                 continue
+            if row.get(f"{role}_resolution_mode") == "current_legal_act":
+                # Do not turn an anaphoric mention into the document's
+                # skos:prefLabel (e.g. "le présent arrêté").
+                continue
             labels = labels_by_entity.setdefault(entity, {"pref": [], "alt": []})
             pref_label = first(
-                row.get(f"{role}_pref_label"), short_label(row.get(role))
+                row.get(f"{role}_pref_label"), normalized_text(row.get(role))
             )
-            alt_label = first(row.get(role))
+            alt_label = meaningful_alt_label(row.get(role), pref_label)
             if pref_label:
                 labels["pref"].append(pref_label)
             if alt_label:
@@ -288,7 +304,7 @@ def collapse_combined_entity_labels(triplet_rows: list[dict[str, str]]) -> None:
     selected_labels = {
         entity: {
             "pref": choose_label_variant(labels["pref"]),
-            "alt": choose_label_variant(labels["alt"]),
+            "alt": "",
         }
         for entity, labels in labels_by_entity.items()
     }
@@ -300,7 +316,14 @@ def collapse_combined_entity_labels(triplet_rows: list[dict[str, str]]) -> None:
             if not selected:
                 continue
             row[f"{role}_pref_label"] = selected["pref"]
-            row[role] = selected["alt"]
+            row[f"{role}_alt_label"] = meaningful_alt_label(
+                row.get(role), selected["pref"]
+            )
+
+
+def collapse_combined_entity_labels(triplet_rows: list[dict[str, str]]) -> None:
+    """Backward-compatible name for callers using the combined pipeline."""
+    collapse_entity_labels(triplet_rows)
 
 
 def as_int(value: Any) -> int | None:
@@ -534,6 +557,12 @@ def clip_segments(
     ]
 
 
+FRENCH_DETERMINANTS = (
+    "le", "la", "les", "l'", "un", "une", "des", "du", "de la", "de l'",
+    "de", "au", "aux", "à la", "à l'", "ce", "cet", "cette", "ces",
+)
+
+
 def infer_segment(content: str, mention: str) -> list[tuple[int, int]]:
     if not mention:
         return []
@@ -541,7 +570,36 @@ def infer_segment(content: str, mention: str) -> list[tuple[int, int]]:
     if start >= 0:
         return [(start, start + len(mention))]
     match = re.search(re.escape(mention), content, flags=re.IGNORECASE)
-    return [(match.start(), match.end())] if match else []
+    if match:
+        return [(match.start(), match.end())]
+
+    # The extractor can omit the article: "les lieux" vs "des lieux".
+    # Return the span from the source text, including its actual determiner.
+    first_word = re.match(
+        r"(?i)(le|la|les|l'|un|une|des|du|de|au|aux|ce|cet|cette|ces)\s+",
+        mention,
+    )
+    if first_word:
+        remainder = mention[first_word.end():]
+        determiners = "|".join(re.escape(item) for item in FRENCH_DETERMINANTS)
+        remainder_words = remainder.split()
+        if remainder_words:
+            # Accommodate singular/plural mismatches such as
+            # "le poste de travail" vs "des postes de travail".
+            remainder_pattern = r"\s+".join(
+                word if word.endswith("s") else f"{word}s?"
+                for word in (re.escape(item) for item in remainder_words)
+            )
+        else:
+            remainder_pattern = re.escape(remainder)
+        match = re.search(
+            rf"\b(?:{determiners})\s+{remainder_pattern}",
+            content,
+            flags=re.IGNORECASE,
+        )
+        if match:
+            return [(match.start(), match.end())]
+    return []
 
 
 def side_segments(
@@ -651,6 +709,8 @@ def rml_source_files(config: ProviderConfig, results_csv: Path) -> RmlSourceFile
     stem = results_csv.stem
     return RmlSourceFiles(
         documents=source_dir / f"{stem}_documents_rml.csv",
+        topics=source_dir / f"{stem}_topics_rml.csv",
+        curation=Path("src/output/rml/curation_rml.csv"),
         triplets=source_dir / f"{stem}_legal_triplets_rml.csv",
         mentions=source_dir / f"{stem}_legal_mentions_rml.csv",
     )
@@ -688,9 +748,19 @@ def apply_start_at(args: argparse.Namespace) -> None:
         args.skip_prepare_rml_sources = True
 
 
-def create_document_rml_source(input_corpus: Path, output_csv: Path) -> int:
+def create_document_rml_source(
+    input_corpus: Path,
+    output_csv: Path,
+    included_source_row_ids: set[int] | None = None,
+) -> int:
     rows = read_csv(input_corpus)
+    filtered_rows = []
     for source_row_id, row in enumerate(rows):
+        if (
+            included_source_row_ids is not None
+            and source_row_id not in included_source_row_ids
+        ):
+            continue
         number = article_number(row, {}, first(row.get("content")))
         row["document_key"] = document_key(row, {})
         row["article_number"] = number
@@ -698,9 +768,132 @@ def create_document_rml_source(input_corpus: Path, output_csv: Path) -> int:
             first(row.get("id")), number, str(source_row_id)
         )
         row["date"] = date_to_xsd(row.get("date"))
-    columns = list(rows[0].keys()) if rows else []
-    write_csv(output_csv, rows, columns)
-    return len(rows)
+        filtered_rows.append(row)
+    columns = list(filtered_rows[0].keys()) if filtered_rows else []
+    write_csv(output_csv, filtered_rows, columns)
+    return len(filtered_rows)
+
+
+def create_curation_rml_source(
+    input_corpus: Path,
+    output_csv: Path,
+    included_source_row_ids: set[int] | None = None,
+) -> set[str]:
+    data = json.loads((REPO_ROOT / DEFAULT_CURATION).read_text(encoding="utf-8"))
+    decisions = data.get("decisions", [])
+    corpus_rows = read_csv(input_corpus)
+    allowed_documents = {
+        f"{INSTANCE_NS}/document/{document_key(row, {})}"
+        for source_row_id, row in enumerate(corpus_rows)
+        if included_source_row_ids is None or source_row_id in included_source_row_ids
+    }
+    validated: set[str] = set()
+    rows: list[dict[str, str]] = []
+    for decision in decisions:
+        target_data = decision.get("target", {})
+        target = first(decision.get("oa:hasTarget"), decision.get("target_uri"), target_data.get("uri") if isinstance(target_data, dict) else "")
+        status = first(decision.get("oa:hasBody"), decision.get("status"))
+        if not target or not status:
+            continue
+        if target not in allowed_documents:
+            continue
+        is_validated = status.endswith("ValidatedForMaintenance")
+        if is_validated:
+            validated.add(target)
+        rows.append({
+            "decision_uri": (
+                f"{INSTANCE_NS}/curation/"
+                f"{iri_part(first(decision.get('decision_id'), decision.get('id')))}"
+            ),
+            "target_uri": target,
+            "status_uri": f"{INSTANCE_NS}/{status.removeprefix('inst:')}",
+            "status_label": "Validated for maintenance" if is_validated else "Not selected for maintenance",
+            "status_definition": "The legal document has been reviewed and validated as relevant to the maintenance corpus." if is_validated else "The document was considered as a candidate and excluded after the relevant arrêté for the maintenance corpus had been selected.",
+            "motivation_uri": "http://www.w3.org/ns/oa#classifying",
+            "activity_uri": f"{INSTANCE_NS}/maintenanceCurationActivity-Dis_arretes_full_corrected",
+            "source_uri": f"{INSTANCE_NS}/Dis_arretes_full_corrected",
+            "dataset_uri": f"{INSTANCE_NS}/maintenanceCorpus",
+            "activity_label": "Maintenance corpus curation",
+            "activity_comment": "Activity that classifies legal documents according to their selection for the maintenance corpus.",
+            "started_at": "2026-10-05T00:00:00Z",
+            "ended_at": "2026-11-09T23:59:59Z",
+            "source_title": "Corrected Arrêté curation decisions",
+        })
+    write_csv(output_csv, rows, list(rows[0]) if rows else ["decision_uri"])
+    return validated
+
+
+def create_topic_rml_source(
+    input_corpus: Path,
+    output_csv: Path,
+    included_source_row_ids: set[int] | None = None,
+    validated_documents: set[str] | None = None,
+) -> int:
+    rows = read_csv(input_corpus)
+    topic_rows: list[dict[str, str]] = []
+    for source_row_id, row in enumerate(rows):
+        if (
+            included_source_row_ids is not None
+            and source_row_id not in included_source_row_ids
+        ):
+            continue
+        number = article_number(row, {}, first(row.get("content")))
+        article_key_value = article_key(
+            first(row.get("id")), number, str(source_row_id)
+        )
+        article_uri_value = article_uri(document_key(row, {}), article_key_value)
+        document_type = folded_text(row.get("type"))
+        is_arrete = document_type in {"arrete", "arretes"}
+        if validated_documents is not None and is_arrete:
+            document_uri_value = f"{INSTANCE_NS}/document/{document_key(row, {})}"
+            if document_uri_value not in validated_documents:
+                continue
+        raw_topics = row.get("domain", "")
+        try:
+            topics = (
+                ast.literal_eval(raw_topics)
+                if raw_topics.strip().startswith("[")
+                else [raw_topics]
+            )
+        except (SyntaxError, ValueError):
+            topics = [raw_topics]
+        for topic in topics if isinstance(topics, list) else [topics]:
+            label = normalized_text(topic)
+            if not label:
+                continue
+            topic_rows.append(
+                {
+                    "article_uri": article_uri_value,
+                    "topic_label": label,
+                    "topic_slug": slugify_topic(label),
+                }
+            )
+    write_csv(output_csv, topic_rows, ["article_uri", "topic_label", "topic_slug"])
+    return len(topic_rows)
+
+
+def slugify_topic(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", folded_text(value)).strip("-")
+
+
+def filtered_source_row_ids(
+    results_csv: Path,
+    max_rows: int | None = None,
+) -> set[int]:
+    """Return corpus row ids that have at least one extracted triplet."""
+    result_rows = read_csv(results_csv)
+    if max_rows is not None:
+        result_rows = result_rows[:max_rows]
+
+    source_row_ids = set()
+    for result_position, result_row in enumerate(result_rows):
+        if not as_triplets(result_row.get("legal_triplets")):
+            continue
+        source_index = as_int(result_row.get("index"))
+        source_row_ids.add(
+            source_index if source_index is not None else result_position
+        )
+    return source_row_ids
 
 
 def create_triplet_and_mention_rml_sources(
@@ -775,6 +968,11 @@ def create_triplet_and_mention_rml_sources(
                 tail_type,
                 doc_key,
             )
+            # A current-legal-act reference such as "le présent arrêté" points
+            # to the document URI, but is not the document's preferred label.
+            # Its canonical label is emitted from document metadata instead.
+            head_pref_label = "" if head_resolution_mode == "current_legal_act" else normalized_text(head)
+            tail_pref_label = "" if tail_resolution_mode == "current_legal_act" else normalized_text(tail)
 
             triplet_rows.append(
                 {
@@ -794,7 +992,8 @@ def create_triplet_and_mention_rml_sources(
                     ),
                     "triplet_index": triplet_index,
                     "head": head,
-                    "head_pref_label": short_label(head),
+                    "head_pref_label": head_pref_label,
+                    "head_alt_label": meaningful_alt_label(head, head_pref_label),
                     "head_resolution_mode": head_resolution_mode,
                     "head_resolved_entity_id": head_resolved_id,
                     "head_uri": head_uri,
@@ -805,7 +1004,8 @@ def create_triplet_and_mention_rml_sources(
                     "relation": relation,
                     "relation_iri": lookup_iri(relation, relation_iris, SEMLEGM_NS),
                     "tail": tail,
-                    "tail_pref_label": short_label(tail),
+                    "tail_pref_label": tail_pref_label,
+                    "tail_alt_label": meaningful_alt_label(tail, tail_pref_label),
                     "tail_resolution_mode": tail_resolution_mode,
                     "tail_resolved_entity_id": tail_resolved_id,
                     "tail_uri": tail_uri,
@@ -862,8 +1062,7 @@ def create_triplet_and_mention_rml_sources(
                     }
                 )
 
-    if config.provider == COMBINED_PROVIDER:
-        collapse_combined_entity_labels(triplet_rows)
+    collapse_entity_labels(triplet_rows)
     write_csv(triplets_csv, triplet_rows, TRIPLET_RML_COLUMNS)
     write_csv(mentions_csv, mention_rows, MENTION_RML_COLUMNS)
     return len(triplet_rows), len(mention_rows)
@@ -877,6 +1076,8 @@ def patch_mapping_sources(config: ProviderConfig, sources: RmlSourceFiles) -> No
         "RawLegalDocumentSource": sources.documents,
         "NormalizedTripletSource": sources.triplets,
         "NormalizedMentionSource": sources.mentions,
+        "ArticleTopicSource": sources.topics,
+        "CurationSource": sources.curation,
     }
     for source_name, source_path in replacements.items():
         text = re.sub(
@@ -901,8 +1102,6 @@ def patch_mapping_sources(config: ProviderConfig, sources: RmlSourceFiles) -> No
         text,
         count=1,
     )
-    text = text.replace('rml:reference "head_alt_label"', 'rml:reference "head"')
-    text = text.replace('rml:reference "tail_alt_label"', 'rml:reference "tail"')
     if config.provider == COMBINED_PROVIDER:
         text = patch_combined_mapping_text(text)
     mapping_path.write_text(text, encoding="utf-8")
@@ -919,13 +1118,30 @@ def prepare_rml_sources(
     sources = rml_source_files(config, results_csv)
     print("\n== Prepare generated RML CSV sources ==")
     print(f"Documents: {sources.documents}")
+    print(f"Topics:    {sources.topics}")
+    print(f"Curation:  {sources.curation}")
     print(f"Triplets:  {sources.triplets}")
     print(f"Mentions:  {sources.mentions}")
     print(f"Patch mapping: {config.rml_mapping}")
     if dry_run:
         return
 
-    document_count = create_document_rml_source(input_corpus, sources.documents)
+    included_source_row_ids = filtered_source_row_ids(results_csv, max_rows)
+    document_count = create_document_rml_source(
+        input_corpus,
+        sources.documents,
+        included_source_row_ids=included_source_row_ids,
+    )
+    topic_count = create_topic_rml_source(
+        input_corpus,
+        sources.topics,
+        included_source_row_ids=included_source_row_ids,
+        validated_documents=create_curation_rml_source(
+            input_corpus,
+            sources.curation,
+            included_source_row_ids=included_source_row_ids,
+        ),
+    )
     triplet_count, mention_count = create_triplet_and_mention_rml_sources(
         config=config,
         input_corpus=input_corpus,
@@ -937,6 +1153,7 @@ def prepare_rml_sources(
     )
     patch_mapping_sources(config, sources)
     print(f"Documents: {document_count}")
+    print(f"Topics: {topic_count}")
     print(f"Triplets: {triplet_count}")
     print(f"Mentions: {mention_count}")
 
@@ -1009,7 +1226,9 @@ def build_commands(
             "--relation-mapping-json",
             str(merge_outputs.relation_mapping_json),
             "--topic-filter",
-            "all",
+            args.topic_filter,
+            "--filter-strategy",
+            args.filter_strategy,
             "--entity-similarity-threshold",
             str(args.entity_similarity_threshold),
             "--relation-similarity-threshold",
@@ -1143,6 +1362,23 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=DEFAULT_MERGE_BATCH_SIZE,
         help="Embedding batch size for the pre-flatten merge step.",
+    )
+    parser.add_argument(
+        "--filter-strategy",
+        choices=["article", "triplet"],
+        default=DEFAULT_FILTER_STRATEGY,
+        help=(
+            "Topic filtering strategy for the pre-flatten merge: use the article "
+            "domain (article) or each triplet topic (triplet)."
+        ),
+    )
+    parser.add_argument(
+        "--topic-filter",
+        default=DEFAULT_TOPIC_FILTER,
+        help=(
+            'Topic regex or "all" for the pre-flatten merge. With the article '
+            "strategy, it is matched against the article domain."
+        ),
     )
     parser.add_argument(
         "--relation-canonical-strategy",

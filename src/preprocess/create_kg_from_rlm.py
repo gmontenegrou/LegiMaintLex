@@ -49,11 +49,7 @@ def set_max_csv_field_size() -> None:
 
 
 def default_mapping(provider: str) -> Path:
-    return (
-        Path("exp/kg")
-        / provider
-        / f"csv_to_rml_mapping_{provider}_rules.ttl"
-    )
+    return Path("exp/kg") / provider / f"csv_to_rml_mapping_{provider}_rules.ttl"
 
 
 def default_output(provider: str, mapping: Path, output_format: str) -> Path:
@@ -211,6 +207,10 @@ def run_lite_rml(
 
     output_graph = Graph()
     for prefix, namespace in mapping_graph.namespaces():
+        # Keep internal mapping prefixes out of the serialized KG. Resource
+        # URIs should be emitted in full rather than as inst: or cur: names.
+        if prefix in {"inst", "cur"}:
+            continue
         output_graph.bind(prefix, namespace)
 
     source_cache: dict[Any, list[dict[str, str]]] = {}
