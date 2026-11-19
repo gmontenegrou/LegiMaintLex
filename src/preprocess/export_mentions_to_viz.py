@@ -31,6 +31,7 @@ PROV = Namespace("http://www.w3.org/ns/prov#")
 ELI = Namespace("http://data.europa.eu/eli/ontology#")
 DCTERMS = Namespace("http://purl.org/dc/terms/")
 XSD = Namespace("http://www.w3.org/2001/XMLSchema#")
+SKOS = Namespace("http://www.w3.org/2004/02/skos/core#")
 
 
 def parse_triplets(value: Any) -> list[dict[str, Any]]:
@@ -428,6 +429,7 @@ def main() -> None:
     rdf.bind("eli", ELI)
     rdf.bind("dcterms", DCTERMS)
     rdf.bind("xsd", XSD)
+    rdf.bind("skos", SKOS)
     rdf.bind("semleg", SEMLEG_NS)
 
     total_docs = 0
@@ -578,6 +580,11 @@ def main() -> None:
             body_uri = URIRef(
                 INSTANCE_NS[f"entity/{mention['label'].lower()}/{entity_slug}"]
             )
+            entity_class = SEMLEG_NS[mention["label"].strip().title()]
+            rdf.add((body_uri, RDF.type, SKOS.Concept))
+            rdf.add((body_uri, RDF.type, PROV.Entity))
+            rdf.add((body_uri, RDF.type, entity_class))
+            rdf.add((body_uri, SKOS.prefLabel, Literal(mention["text"], datatype=XSD.string)))
             selector_nodes = []
             for start, end in mention["segments"]:
                 selector = BNode()
